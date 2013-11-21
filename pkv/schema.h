@@ -12,7 +12,7 @@ namespace pkv {
 class Row;
 
 class Schema: public NoCopy {
-    friend Row;
+    friend class Row;
 
     struct column_info {
         int id;
