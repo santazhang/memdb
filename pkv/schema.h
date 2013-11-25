@@ -14,8 +14,10 @@ class Row;
 class Schema: public NoCopy {
     friend class Row;
 
+public:
+
     struct column_info {
-        int id;
+        int id; // XXX is it really useful?
         Value::kind type;
 
         // if fixed size (i32, i64, double)
@@ -25,15 +27,6 @@ class Schema: public NoCopy {
         // need to lookup a index table on row
         int var_size_idx;
     };
-
-    std::unordered_map<std::string, int> col_name_to_id_;
-    std::vector<column_info> col_info_;
-
-    // number of variable size cols (lookup table on row data)
-    int var_size_cols_;
-    int fixed_part_size_;
-
-public:
 
     Schema(): var_size_cols_(0), fixed_part_size_(0) {}
 
@@ -46,6 +39,30 @@ public:
         }
         return -1;
     }
+
+    const column_info* get_column_info(const std::string& name) const {
+        int col_id = get_column_id(name);
+        if (col_id < 0) {
+            return nullptr;
+        } else {
+            verify(col_id == col_info_[col_id].id);
+            return &col_info_[col_id];
+        }
+    }
+    const column_info* get_column_info(int column_id) const {
+        verify(column_id >= 0 && column_id < col_info_.size());
+        return &col_info_[column_id];
+    }
+
+private:
+
+    std::unordered_map<std::string, int> col_name_to_id_;
+    std::vector<column_info> col_info_;
+
+    // number of variable size cols (lookup table on row data)
+    int var_size_cols_;
+    int fixed_part_size_;
+
 };
 
 } // namespace pkv

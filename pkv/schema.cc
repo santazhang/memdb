@@ -10,6 +10,7 @@ int Schema::add_column(const char* name, Value::kind type) {
     }
 
     column_info col_info;
+    bzero(&col_info, sizeof(col_info));
     col_info.id = next_column_id;
     col_info.type = type;
 
@@ -27,7 +28,7 @@ int Schema::add_column(const char* name, Value::kind type) {
         case Value::I64:
             fixed_part_size_ += sizeof(i64);
             break;
-        case Value::DOUBLE:
+        case Value::F64:
             fixed_part_size_ += sizeof(double);
             break;
         default:

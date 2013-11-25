@@ -8,7 +8,7 @@ class Value {
     union {
         i32 i32_;
         i64 i62_;
-        double double_;
+        f64 f64_;
         std::string* p_str_;
     };
 
@@ -16,7 +16,7 @@ public:
     typedef enum {
         I32,
         I64,
-        DOUBLE,
+        F64,
         STR
     } kind;
 };
