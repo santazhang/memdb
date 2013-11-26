@@ -50,12 +50,34 @@ int Value::compare(const Value& o) const {
         break;
 
     default:
-        // should not reach here
+        Log::fatal("unexpected value type %d", k_);
         verify(0);
         break;
     }
 
     return 0;
+}
+
+
+void Value::write_binary(char* buf) const {
+    switch (k_) {
+    case Value::I32:
+        memcpy(buf, &i32_, sizeof(i32));
+        break;
+    case Value::I64:
+        memcpy(buf, &i64_, sizeof(i64));
+        break;
+    case Value::F64:
+        memcpy(buf, &f64_, sizeof(f64));
+        break;
+    case Value::STR:
+        memcpy(buf, &((*p_str_)[0]), p_str_->size());
+        break;
+    default:
+        Log::fatal("cannot write_binary() on value type %d", k_);
+        verify(0);
+        break;
+    }
 }
 
 std::ostream& operator<< (std::ostream& o, const Value& v) {
@@ -76,7 +98,7 @@ std::ostream& operator<< (std::ostream& o, const Value& v) {
         o << "STR:" << *v.p_str_;
         break;
     default:
-        // should not reach here
+        Log::fatal("unexpected value type %d", v.k_);
         verify(0);
         break;
     }

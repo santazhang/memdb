@@ -1,8 +1,12 @@
+#include <map>
+#include <string>
+
 #include "pkv/schema.h"
 #include "base/all.h"
 
 using namespace base;
 using namespace pkv;
+using namespace std;
 
 TEST(value, types) {
     Value v;
@@ -20,4 +24,12 @@ TEST(value, types) {
     EXPECT_EQ(Value("hi").get_str(), "hi");
     EXPECT_EQ(Value(), Value());
 
+}
+
+TEST(value, insert_into_map) {
+    map<string, Value> row;
+    insert_into_map(row, string("id"), Value(2));
+    row["name"] = Value("alice");
+    // check for overwriting, use valgrind to detect memory leak
+    row["name"] = Value("bob");
 }

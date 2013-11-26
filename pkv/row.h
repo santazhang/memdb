@@ -1,5 +1,11 @@
 #pragma once
 
+#include <map>
+#include <unordered_map>
+#include <vector>
+
+#include "utils.h"
+
 namespace pkv {
 
 // forward declartion
@@ -7,7 +13,7 @@ class Schema;
 
 class Row: public NoCopy {
     // version
-    i32 ver_;
+    i64 ver_;
 
     // fixed size part
     char* fixed_part_;
@@ -19,6 +25,21 @@ class Row: public NoCopy {
     int* var_idx_;
 
     Schema* schema_;
+
+    // private ctor, factory model
+    Row(): ver_(0), fixed_part_(nullptr), var_part_(nullptr), var_idx_(nullptr), schema_(nullptr) {}
+    ~Row();
+
+public:
+    i64 get_ver() const {
+        return ver_;
+    }
+    Value get_column(int column_id) const;
+    Value get_column(const std::string& col_name) const;
+
+    static Row* create(Schema* schema, const std::map<std::string, Value>& values);
+    static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static Row* create(Schema* schema, const std::vector<Value>& values);
 };
 
 } // namespace pkv

@@ -47,13 +47,13 @@ public:
             if (k_ == STR) {
                 delete p_str_;
             }
-            if (o.k_ == STR) {
-                p_str_ = new std::string(*o.p_str_);
-            }
             k_ = o.k_;
             i32_ = o.i32_;
             i64_ = o.i64_;
             f64_ = o.f64_;
+            if (k_ == STR) {
+                p_str_ = new std::string(*o.p_str_);
+            }
         }
         return *this;
     }
@@ -139,6 +139,8 @@ public:
             *p_str_ = str;
         }
     }
+
+    void write_binary(char* buf) const;
 
 private:
     kind k_;
