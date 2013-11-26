@@ -20,12 +20,14 @@ public:
         int id; // XXX is it really useful?
         Value::kind type;
 
-        // if fixed size (i32, i64, double)
-        int fixed_size_offst;
+        union {
+            // if fixed size (i32, i64, double)
+            int fixed_size_offst;
 
-        // if not fixed size (str)
-        // need to lookup a index table on row
-        int var_size_idx;
+            // if not fixed size (str)
+            // need to lookup a index table on row
+            int var_size_idx;
+        };
     };
 
     Schema(): var_size_cols_(0), fixed_part_size_(0) {}
