@@ -21,12 +21,6 @@ using base::RefCounted;
 using base::Counter;
 using base::Rand;
 
-// reference to (part of) a string
-struct str_ref {
-    char* str;
-    int len;
-};
-
 template<class K, class V>
 inline void insert_into_map(std::map<K, V>& dict, const K& key, const V& value) {
     dict.insert(typename std::map<K, V>::value_type(key, value));
