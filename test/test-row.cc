@@ -1,9 +1,9 @@
-#include "pkv/schema.h"
-#include "pkv/row.h"
+#include "memdb/schema.h"
+#include "memdb/row.h"
 #include "base/all.h"
 
 using namespace base;
-using namespace pkv;
+using namespace mdb;
 using namespace std;
 
 TEST(row, create) {

@@ -1,8 +1,8 @@
-#include "pkv/table.h"
+#include "memdb/table.h"
 #include "base/all.h"
 
 using namespace base;
-using namespace pkv;
+using namespace mdb;
 
 TEST(bench, insert) {
 }

@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-namespace pkv {
+namespace mdb {
 
 class Value {
     friend std::ostream& operator<< (std::ostream& o, const Value& v);
@@ -155,4 +155,4 @@ private:
 
 std::ostream& operator<< (std::ostream& o, const Value& v);
 
-} // namespace pkv
+} // namespace mdb

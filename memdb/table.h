@@ -2,9 +2,9 @@
 
 #include "utils.h"
 
-namespace pkv {
+namespace mdb {
 
 class Table: public NoCopy {
 };
 
-} // namespace pkv
+} // namespace mdb

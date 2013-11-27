@@ -1,7 +1,9 @@
 #include "schema.h"
 
-using namespace pkv;
+using namespace mdb;
 using namespace std;
+
+namespace mdb {
 
 int Schema::add_column(const char* name, Value::kind type) {
     int next_column_id = col_name_to_id_.size();
@@ -42,3 +44,5 @@ int Schema::add_column(const char* name, Value::kind type) {
     col_info_.push_back(col_info);
     return next_column_id;
 }
+
+} // namespace mdb

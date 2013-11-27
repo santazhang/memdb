@@ -15,11 +15,12 @@ def configure(conf):
 
 def build(bld):
     bld.stlib(source=bld.path.ant_glob("pkv/*.cc"), target="persistkv", includes="pkv", use="BASE PTHREAD")
+    bld.stlib(source=bld.path.ant_glob("memdb/*.cc"), target="memdb", includes="memdb", use="persistkv BASE PTHREAD")
 
-    def _prog(source, target, includes=".", use="persitkv BASE PTHREAD"):
+    def _prog(source, target, includes=".", use="persistkv memdb BASE PTHREAD"):
         bld.program(source=source, target=target, includes=includes, use=use)
 
-    _prog(bld.path.ant_glob("test/test*.cc"), "testharness", use="persistkv BASE PTHREAD")
+    _prog(bld.path.ant_glob("test/test*.cc"), "testharness", use="persistkv memdb BASE PTHREAD")
 
 #
 # waf helper code

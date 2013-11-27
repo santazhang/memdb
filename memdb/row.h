@@ -6,7 +6,7 @@
 
 #include "utils.h"
 
-namespace pkv {
+namespace mdb {
 
 // forward declartion
 class Schema;
@@ -42,4 +42,4 @@ public:
     static Row* create(Schema* schema, const std::vector<Value>& values);
 };
 
-} // namespace pkv
+} // namespace mdb

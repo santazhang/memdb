@@ -5,7 +5,7 @@
 
 #include "base/all.h"
 
-namespace pkv {
+namespace mdb {
 
 using base::i32;
 using base::i64;
@@ -37,4 +37,4 @@ inline void insert_into_map(std::unordered_map<K, V>& dict, const K& key, const 
     dict.insert(typename std::unordered_map<K, V>::value_type(key, value));
 }
 
-} // namespace pkv
+} // namespace mdb

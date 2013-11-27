@@ -1,11 +1,11 @@
 #include <map>
 #include <string>
 
-#include "pkv/schema.h"
+#include "memdb/schema.h"
 #include "base/all.h"
 
 using namespace base;
-using namespace pkv;
+using namespace mdb;
 using namespace std;
 
 TEST(value, types) {

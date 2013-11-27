@@ -1,8 +1,8 @@
-#include "pkv/schema.h"
+#include "memdb/schema.h"
 #include "base/all.h"
 
 using namespace base;
-using namespace pkv;
+using namespace mdb;
 
 TEST(schema, create) {
     verify(sizeof(double) == 8);

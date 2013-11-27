@@ -1,6 +1,6 @@
 #include "value.h"
 
-namespace pkv {
+namespace mdb {
 
 int Value::compare(const Value& o) const {
     verify(k_ == o.k_);
@@ -105,4 +105,4 @@ std::ostream& operator<< (std::ostream& o, const Value& v) {
     return o;
 }
 
-} // namespace pkv
+} // namespace mdb

@@ -7,7 +7,7 @@
 #include "value.h"
 #include "utils.h"
 
-namespace pkv {
+namespace mdb {
 
 class Row;
 
@@ -67,4 +67,4 @@ private:
 
 };
 
-} // namespace pkv
+} // namespace mdb

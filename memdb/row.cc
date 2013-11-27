@@ -2,7 +2,7 @@
 #include "row.h"
 #include "schema.h"
 
-namespace pkv {
+namespace mdb {
 
 Row::~Row() {
     delete[] fixed_part_;
@@ -121,4 +121,4 @@ Row* Row::create(Schema* schema, const std::vector<Value>& values) {
 }
 
 
-} // namespace pkv
+} // namespace mdb
