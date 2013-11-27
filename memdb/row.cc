@@ -53,20 +53,31 @@ Value Row::get_column(const std::string& col_name) const {
 }
 
 Row* Row::create(Schema* schema, const std::map<std::string, Value>& values) {
-    Row* row = new Row;
-    // TODO
-    return row;
+    std::vector<const Value*> values_ptr(values.size(), nullptr);
+    for (auto& it: values) {
+        values_ptr[schema->get_column_id(it.first)] = &it.second;
+    }
+    return Row::create(schema, values_ptr);
 }
-
 
 Row* Row::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
-    Row* row = new Row;
-    // TODO
-    return row;
+    std::vector<const Value*> values_ptr(values.size(), nullptr);
+    for (auto& it: values) {
+        values_ptr[schema->get_column_id(it.first)] = &it.second;
+    }
+    return Row::create(schema, values_ptr);
 }
 
-
 Row* Row::create(Schema* schema, const std::vector<Value>& values) {
+    std::vector<const Value*> values_ptr;
+    values_ptr.reserve(values.size());
+    for (auto& it: values) {
+        values_ptr.push_back(&it);
+    }
+    return Row::create(schema, values_ptr);
+}
+
+Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
     Row* row = new Row;
     row->schema_ = schema;
     row->fixed_part_ = new char[schema->fixed_part_size_];
@@ -78,24 +89,24 @@ Row* Row::create(Schema* schema, const std::vector<Value>& values) {
     int var_part_size = 0;
     int fixed_pos = 0;
     for (auto& it: values) {
-        switch (it.get_kind()) {
+        switch (it->get_kind()) {
         case Value::I32:
-            it.write_binary(&row->fixed_part_[fixed_pos]);
+            it->write_binary(&row->fixed_part_[fixed_pos]);
             fixed_pos += sizeof(i32);
             break;
         case Value::I64:
-            it.write_binary(&row->fixed_part_[fixed_pos]);
+            it->write_binary(&row->fixed_part_[fixed_pos]);
             fixed_pos += sizeof(i64);
             break;
         case Value::F64:
-            it.write_binary(&row->fixed_part_[fixed_pos]);
+            it->write_binary(&row->fixed_part_[fixed_pos]);
             fixed_pos += sizeof(f64);
             break;
         case Value::STR:
-            var_part_size += it.get_str().size();
+            var_part_size += it->get_str().size();
             break;
         default:
-            Log::fatal("unexpected value type %d", it.get_kind());
+            Log::fatal("unexpected value type %d", it->get_kind());
             verify(0);
             break;
         }
@@ -107,16 +118,15 @@ Row* Row::create(Schema* schema, const std::vector<Value>& values) {
         int var_pos = 0;
         row->var_part_ = new char[var_part_size];
         for (auto& it: values) {
-            if (it.get_kind() == Value::STR) {
-                row->var_idx_[var_counter] = it.get_str().size();
-                it.write_binary(&row->var_part_[var_pos]);
+            if (it->get_kind() == Value::STR) {
+                row->var_idx_[var_counter] = it->get_str().size();
+                it->write_binary(&row->var_part_[var_pos]);
                 var_counter++;
-                var_pos += it.get_str().size();
+                var_pos += it->get_str().size();
             }
         }
         verify(var_part_size == var_pos);
     }
-
     return row;
 }
 

@@ -40,6 +40,9 @@ public:
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::vector<Value>& values);
+
+    // helper function for all the create()
+    static Row* create(Schema* schema, const std::vector<const Value*>& values);
 };
 
 } // namespace mdb

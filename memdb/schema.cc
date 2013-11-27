@@ -5,15 +5,14 @@ using namespace std;
 
 namespace mdb {
 
-int Schema::add_column(const char* name, Value::kind type) {
+int Schema::add_column(const char* name, Value::kind type, bool indexed /* =? */) {
     int next_column_id = col_name_to_id_.size();
     if (col_name_to_id_.find(name) != col_name_to_id_.end()) {
         return -1;
     }
 
     column_info col_info;
-    bzero(&col_info, sizeof(col_info));
-    col_info.id = next_column_id;
+    col_info.indexed = indexed;
     col_info.type = type;
 
     if (col_info.type == Value::STR) {
@@ -40,7 +39,7 @@ int Schema::add_column(const char* name, Value::kind type) {
         }
     }
 
-    insert_into_map(col_name_to_id_, string(name), col_info.id);
+    insert_into_map(col_name_to_id_, string(name), next_column_id);
     col_info_.push_back(col_info);
     return next_column_id;
 }

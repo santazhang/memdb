@@ -17,7 +17,9 @@ class Schema: public NoCopy {
 public:
 
     struct column_info {
-        int id; // XXX is it really useful?
+        column_info(): indexed(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
+
+        bool indexed;
         Value::kind type;
 
         union {
@@ -32,7 +34,7 @@ public:
 
     Schema(): var_size_cols_(0), fixed_part_size_(0) {}
 
-    int add_column(const char* name, Value::kind type);
+    int add_column(const char* name, Value::kind type, bool indexed = false);
     int get_column_id(const std::string& name) const {
         auto it = col_name_to_id_.find(name);
         if (it != end(col_name_to_id_)) {
@@ -47,7 +49,6 @@ public:
         if (col_id < 0) {
             return nullptr;
         } else {
-            verify(col_id == col_info_[col_id].id);
             return &col_info_[col_id];
         }
     }
