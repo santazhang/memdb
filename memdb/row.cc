@@ -10,6 +10,7 @@ Row::~Row() {
         delete[] var_part_;
         delete[] var_idx_;
     }
+    schema_->release();
 }
 
 Value Row::get_column(int column_id) const {
@@ -79,7 +80,7 @@ Row* Row::create(Schema* schema, const std::vector<Value>& values) {
 
 Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
     Row* row = new Row;
-    row->schema_ = schema;
+    row->schema_ = (Schema *) schema->ref_copy();
     row->fixed_part_ = new char[schema->fixed_part_size_];
     if (schema->var_size_cols_ > 0) {
         row->var_idx_ = new int[schema->var_size_cols_];

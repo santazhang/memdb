@@ -4,7 +4,10 @@
 
 namespace mdb {
 
-class Table: public NoCopy {
+class Table: public RefCounted {
+protected:
+    // protected dtor as requried by RefCounted
+    ~Table();
 };
 
 } // namespace mdb

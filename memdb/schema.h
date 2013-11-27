@@ -11,7 +11,7 @@ namespace mdb {
 
 class Row;
 
-class Schema: public NoCopy {
+class Schema: public RefCounted {
     friend class Row;
 
 public:
@@ -56,6 +56,10 @@ public:
         verify(column_id >= 0 && column_id < col_info_.size());
         return &col_info_[column_id];
     }
+
+protected:
+    // protected dtor as requried by RefCounted
+    ~Schema() {}
 
 private:
 

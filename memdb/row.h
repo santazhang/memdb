@@ -11,7 +11,7 @@ namespace mdb {
 // forward declartion
 class Schema;
 
-class Row: public NoCopy {
+class Row: public RefCounted {
     // version
     i64 ver_;
 
@@ -28,9 +28,15 @@ class Row: public NoCopy {
 
     // private ctor, factory model
     Row(): ver_(0), fixed_part_(nullptr), var_part_(nullptr), var_idx_(nullptr), schema_(nullptr) {}
+
+protected:
+    // protected dtor as requried by RefCounted
     ~Row();
 
 public:
+    void set_ver(i64 ver) {
+        ver_ = ver;
+    }
     i64 get_ver() const {
         return ver_;
     }
