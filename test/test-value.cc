@@ -17,9 +17,9 @@ TEST(value, types) {
 
     EXPECT_LT(Value(43), Value(48));
 
-    EXPECT_LT(Value(43000000LL), Value(48000000LL));
-    EXPECT_EQ(Value(43000000LL).get_kind(), Value::I64);
-    EXPECT_EQ(Value(43000000LL).get_i64(), 43000000LL);
+    EXPECT_LT(Value((i64) 43000000), Value((i64) 48000000));
+    EXPECT_EQ(Value((i64) 43000000).get_kind(), Value::I64);
+    EXPECT_EQ(Value((i64) 43000000).get_i64(), (i64) 43000000);
 
     EXPECT_EQ(Value("hi").get_str(), "hi");
     EXPECT_EQ(Value(), Value());
