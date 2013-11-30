@@ -22,6 +22,9 @@ Table::~Table() {
     for (auto& it: secondary_indices_) {
         delete it.second;
     }
+    for (auto& it: rows_) {
+        it.second->release();
+    }
 }
 
 void Table::insert(Row* row) {
