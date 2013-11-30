@@ -23,7 +23,6 @@ TEST(value, types) {
 
     EXPECT_EQ(Value("hi").get_str(), "hi");
     EXPECT_EQ(Value(), Value());
-
 }
 
 TEST(value, insert_into_map) {

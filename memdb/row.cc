@@ -49,8 +49,44 @@ Value Row::get_column(int column_id) const {
     return v;
 }
 
-Value Row::get_column(const std::string& col_name) const {
-    return get_column(schema_->get_column_id(col_name));
+blob Row::get_blob(int column_id) const {
+    blob b;
+    const Schema::column_info* info = schema_->get_column_info(column_id);
+    verify(info != nullptr);
+    switch (info->type) {
+    case Value::I32:
+        b.data = &fixed_part_[info->fixed_size_offst];
+        b.len = sizeof(i32);
+        break;
+    case Value::I64:
+        b.data = &fixed_part_[info->fixed_size_offst];
+        b.len = sizeof(i64);
+        break;
+    case Value::F64:
+        b.data = &fixed_part_[info->fixed_size_offst];
+        b.len = sizeof(f64);
+        break;
+    case Value::STR:
+        {
+            int var_start = 0;
+            int var_len = 0;
+            if (info->var_size_idx == 0) {
+                var_start = 0;
+                var_len = var_idx_[0];
+            } else {
+                var_start = var_idx_[info->var_size_idx - 1];
+                var_len = var_idx_[info->var_size_idx] - var_idx_[info->var_size_idx - 1];
+            }
+            b.data = &var_part_[var_start];
+            b.len = var_len;
+        }
+        break;
+    default:
+        Log::fatal("unexpected value type %d", info->type);
+        verify(0);
+        break;
+    }
+    return b;
 }
 
 Row* Row::create(Schema* schema, const std::map<std::string, Value>& values) {

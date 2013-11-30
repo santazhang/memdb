@@ -5,15 +5,23 @@ using namespace std;
 
 namespace mdb {
 
-int Schema::add_column(const char* name, Value::kind type, bool indexed /* =? */) {
-    int next_column_id = col_name_to_id_.size();
+int Schema::add_column(const char* name, Value::kind type, bool primary /* =? */, bool indexed /* =? */) {
+    int this_column_id = col_name_to_id_.size();
     if (col_name_to_id_.find(name) != col_name_to_id_.end()) {
         return -1;
     }
 
     column_info col_info;
+    col_info.name = name;
+    col_info.id = this_column_id;
+    col_info.primary = primary;
     col_info.indexed = indexed;
     col_info.type = type;
+
+    if (col_info.primary) {
+        verify(primary_col_id_ == -1);
+        primary_col_id_ = col_info.id;
+    }
 
     if (col_info.type == Value::STR) {
         // var size
@@ -30,7 +38,7 @@ int Schema::add_column(const char* name, Value::kind type, bool indexed /* =? */
             fixed_part_size_ += sizeof(i64);
             break;
         case Value::F64:
-            fixed_part_size_ += sizeof(double);
+            fixed_part_size_ += sizeof(f64);
             break;
         default:
             Log::fatal("value type %d not recognized", (int) type);
@@ -39,9 +47,9 @@ int Schema::add_column(const char* name, Value::kind type, bool indexed /* =? */
         }
     }
 
-    insert_into_map(col_name_to_id_, string(name), next_column_id);
+    insert_into_map(col_name_to_id_, string(name), col_info.id);
     col_info_.push_back(col_info);
-    return next_column_id;
+    return col_info.id;
 }
 
 } // namespace mdb

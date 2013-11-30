@@ -5,7 +5,7 @@ using namespace base;
 using namespace mdb;
 
 TEST(schema, create) {
-    verify(sizeof(double) == 8);
+    verify(sizeof(f64) == 8);
 
     Schema* schema = new Schema;
     EXPECT_EQ(schema->get_column_info("no_such_column"), (void *) nullptr);

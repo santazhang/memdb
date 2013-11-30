@@ -10,6 +10,7 @@ TEST(row, create) {
     Schema* schema = new Schema;
     schema->add_column("id", Value::I32);
     schema->add_column("name", Value::STR);
+
     vector<Value> row1 = { Value(1), Value("alice") };
     Row* r1 = Row::create(schema, row1);
     EXPECT_EQ(r1->get_column("id").get_i32(), 1);

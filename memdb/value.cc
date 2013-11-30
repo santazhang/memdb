@@ -80,6 +80,33 @@ void Value::write_binary(char* buf) const {
     }
 }
 
+blob Value::get_blob() const {
+    blob b;
+    switch (k_) {
+    case Value::I32:
+        b.data = (const char *) &i32_;
+        b.len = sizeof(i32);
+        break;
+    case Value::I64:
+        b.data = (const char *) &i64_;
+        b.len = sizeof(i64);
+        break;
+    case Value::F64:
+        b.data = (const char *) &f64_;
+        b.len = sizeof(f64);
+        break;
+    case Value::STR:
+        b.data = &((*p_str_)[0]);
+        b.len = p_str_->size();
+        break;
+    default:
+        Log::fatal("cannot get_blob() on value type %d", k_);
+        verify(0);
+        break;
+    }
+    return b;
+}
+
 std::ostream& operator<< (std::ostream& o, const Value& v) {
     switch (v.k_) {
     case Value::UNKNOWN:

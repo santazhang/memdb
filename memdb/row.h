@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "utils.h"
+#include "schema.h"
 
 namespace mdb {
 
@@ -12,9 +13,6 @@ namespace mdb {
 class Schema;
 
 class Row: public RefCounted {
-    // version
-    i64 ver_;
-
     // fixed size part
     char* fixed_part_;
 
@@ -27,21 +25,28 @@ class Row: public RefCounted {
     Schema* schema_;
 
     // private ctor, factory model
-    Row(): ver_(0), fixed_part_(nullptr), var_part_(nullptr), var_idx_(nullptr), schema_(nullptr) {}
+    Row(): fixed_part_(nullptr), var_part_(nullptr), var_idx_(nullptr), schema_(nullptr) {}
 
 protected:
     // protected dtor as requried by RefCounted
     ~Row();
 
 public:
-    void set_ver(i64 ver) {
-        ver_ = ver;
-    }
-    i64 get_ver() const {
-        return ver_;
-    }
     Value get_column(int column_id) const;
-    Value get_column(const std::string& col_name) const;
+    Value get_column(const std::string& col_name) const {
+        return get_column(schema_->get_column_id(col_name));
+    }
+    Value get_primary() const {
+        return get_column(schema_->primary_column_id());
+    }
+
+    blob get_blob(int column_id) const;
+    blob get_blob(const std::string& col_name) const {
+        return get_blob(schema_->get_column_id(col_name));
+    }
+    blob get_primary_blob() const {
+        return get_blob(schema_->primary_column_id());
+    }
 
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);

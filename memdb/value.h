@@ -3,6 +3,7 @@
 #include <ostream>
 #include <string>
 
+#include "blob.h"
 #include "utils.h"
 
 namespace mdb {
@@ -141,6 +142,8 @@ public:
     }
 
     void write_binary(char* buf) const;
+
+    blob get_blob() const;
 
 private:
     kind k_;
