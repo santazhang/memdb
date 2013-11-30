@@ -66,7 +66,6 @@ public:
         }
     }
     const column_info* get_column_info(int column_id) const {
-        verify(column_id >= 0 && column_id < col_info_.size());
         return &col_info_[column_id];
     }
 
