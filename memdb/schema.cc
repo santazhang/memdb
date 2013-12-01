@@ -5,7 +5,7 @@ using namespace std;
 
 namespace mdb {
 
-int Schema::add_column(const char* name, Value::kind type, bool primary /* =? */) {
+int Schema::add_column(const char* name, Value::kind type, bool key /* =? */) {
     int this_column_id = col_name_to_id_.size();
     if (col_name_to_id_.find(name) != col_name_to_id_.end()) {
         return -1;
@@ -14,12 +14,12 @@ int Schema::add_column(const char* name, Value::kind type, bool primary /* =? */
     column_info col_info;
     col_info.name = name;
     col_info.id = this_column_id;
-    col_info.primary = primary;
+    col_info.key = key;
     col_info.type = type;
 
-    if (col_info.primary) {
-        verify(primary_col_id_ == -1);
-        primary_col_id_ = col_info.id;
+    if (col_info.key) {
+        verify(key_col_id_ == -1);
+        key_col_id_ = col_info.id;
     }
 
     if (col_info.type == Value::STR) {

@@ -36,16 +36,16 @@ public:
     Value get_column(const std::string& col_name) const {
         return get_column(schema_->get_column_id(col_name));
     }
-    Value get_primary() const {
-        return get_column(schema_->primary_column_id());
+    Value get_key() const {
+        return get_column(schema_->key_column_id());
     }
 
     blob get_blob(int column_id) const;
     blob get_blob(const std::string& col_name) const {
         return get_blob(schema_->get_column_id(col_name));
     }
-    blob get_primary_blob() const {
-        return get_blob(schema_->primary_column_id());
+    blob get_key_blob() const {
+        return get_blob(schema_->key_column_id());
     }
 
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);

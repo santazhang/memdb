@@ -17,11 +17,11 @@ class Schema: public RefCounted {
 public:
 
     struct column_info {
-        column_info(): id(-1), primary(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
+        column_info(): id(-1), key(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
 
         int id;
         std::string name;
-        bool primary;
+        bool key;
         Value::kind type;
 
         union {
@@ -34,10 +34,10 @@ public:
         };
     };
 
-    Schema(): var_size_cols_(0), fixed_part_size_(0), primary_col_id_(-1) {}
+    Schema(): var_size_cols_(0), fixed_part_size_(0), key_col_id_(-1) {}
 
-    int add_column(const char* name, Value::kind type, bool primary = false);
-    int add_primary_column(const char* name, Value::kind type) {
+    int add_column(const char* name, Value::kind type, bool key = false);
+    int add_key_column(const char* name, Value::kind type) {
         return add_column(name, type, true);
     }
 
@@ -49,8 +49,8 @@ public:
         }
         return -1;
     }
-    int primary_column_id() const {
-        return primary_col_id_;
+    int key_column_id() const {
+        return key_col_id_;
     }
 
     const column_info* get_column_info(const std::string& name) const {
@@ -85,7 +85,7 @@ private:
     // number of variable size cols (lookup table on row data)
     int var_size_cols_;
     int fixed_part_size_;
-    int primary_col_id_;
+    int key_col_id_;
 
 };
 

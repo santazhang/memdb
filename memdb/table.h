@@ -18,16 +18,16 @@ public:
 
     void insert(Row* row);
 
-    // based on primary index
-    Row* query(const Value& primary_value) const {
-        auto it = rows_.find(primary_value.get_blob());
+    // based on key index
+    Row* query(const Value& key) const {
+        auto it = rows_.find(key.get_blob());
         if (it != end(rows_)) {
             return it->second;
         }
         return nullptr;
     }
-    void remove(const Value& primary_value) {
-        auto it = rows_.find(primary_value.get_blob());
+    void remove(const Value& key) {
+        auto it = rows_.find(key.get_blob());
         if (it != end(rows_)) {
             it->second->release();
             rows_.erase(it);
@@ -41,7 +41,7 @@ protected:
 private:
     Schema* schema_;
 
-    // indexed by primary values
+    // indexed by key values
     std::unordered_map<blob, Row*, blob::hash> rows_;
 };
 

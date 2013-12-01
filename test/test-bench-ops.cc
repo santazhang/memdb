@@ -9,7 +9,7 @@ using namespace std;
 
 TEST(bench, table_insert) {
     Schema* schema = new Schema;
-    schema->add_primary_column("id", Value::I32);
+    schema->add_key_column("id", Value::I32);
     schema->add_column("name", Value::STR);
 
     Table* t = new Table(schema);

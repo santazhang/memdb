@@ -10,7 +10,7 @@ using namespace std;
 
 TEST(table, create) {
     Schema* schema = new Schema;
-    schema->add_primary_column("id", Value::I32);
+    schema->add_key_column("id", Value::I32);
     schema->add_column("name", Value::STR);
 
     Table* t = new Table(schema);
@@ -19,7 +19,7 @@ TEST(table, create) {
     Row* r1 = Row::create(schema, row1);
     t->insert(r1);
 
-    EXPECT_EQ(t->query(r1->get_primary()), r1);
+    EXPECT_EQ(t->query(r1->get_key()), r1);
     r1->release();
 
     map<string, Value> row2;
