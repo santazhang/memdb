@@ -17,12 +17,11 @@ class Schema: public RefCounted {
 public:
 
     struct column_info {
-        column_info(): id(-1), primary(false), indexed(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
+        column_info(): id(-1), primary(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
 
         int id;
         std::string name;
         bool primary;
-        bool indexed;
         Value::kind type;
 
         union {
@@ -37,12 +36,9 @@ public:
 
     Schema(): var_size_cols_(0), fixed_part_size_(0), primary_col_id_(-1) {}
 
-    int add_column(const char* name, Value::kind type, bool primary = false, bool indexed = false);
+    int add_column(const char* name, Value::kind type, bool primary = false);
     int add_primary_column(const char* name, Value::kind type) {
-        return add_column(name, type, true, true);
-    }
-    int add_indexed_column(const char* name, Value::kind type) {
-        return add_column(name, type, false, true);
+        return add_column(name, type, true);
     }
 
     int get_column_id(const std::string& name) const {

@@ -8,17 +8,14 @@ struct blob {
     const char* data;
     int len;
 
+    bool operator == (const blob& other) const {
+        return (len == other.len) && (memcmp(data, other.data, len) == 0);
+    }
+
     class hash {
     public:
         size_t operator() (const blob& b) const {
             return stringhash32(b.data, b.len);
-        }
-    };
-
-    class equal {
-    public:
-        bool operator() (const blob& b1, const blob& b2) const {
-            return (b1.len == b2.len) && (memcmp(b1.data, b2.data, b1.len) == 0);
         }
     };
 };

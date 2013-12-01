@@ -6,22 +6,12 @@ namespace mdb {
 Table::Table(Schema* schema) {
     schema_ = (Schema *) schema->ref_copy();
     for (auto& it: *schema_) {
-        Log::debug("column: %d, %s%s%s", it.id, it.name.c_str(),
-            it.primary ? ", primary" : "", !it.primary && it.indexed ? ", indexed" : "");
-
-        if (!it.primary && it.indexed) {
-            // secondary indices only
-            secondary_index* idx = new secondary_index(&it);
-            insert_into_map(secondary_indices_, it.name, idx);
-        }
+        Log::debug("column: %d, %s%s", it.id, it.name.c_str(), it.primary ? ", primary" : "");
     }
 }
 
 Table::~Table() {
     schema_->release();
-    for (auto& it: secondary_indices_) {
-        delete it.second;
-    }
     for (auto& it: rows_) {
         it.second->release();
     }
@@ -36,12 +26,6 @@ void Table::insert(Row* row) {
         rows_.erase(it);
     }
     insert_into_map(rows_, primary_blob, (Row *) row->ref_copy());
-
-    // insert into secondary index
-    for (auto& it: secondary_indices_) {
-        blob index_blob = row->get_blob(it.second->column->id);
-        insert_into_map(it.second->index, index_blob, primary_blob);
-    }
 }
 
 } // namespace mdb
