@@ -5,9 +5,9 @@ namespace mdb {
 
 Table::Table(Schema* schema) {
     schema_ = (Schema *) schema->ref_copy();
-    for (auto& it: *schema_) {
-        Log::debug("column: %d, %s%s", it.id, it.name.c_str(), it.primary ? ", primary" : "");
-    }
+    // for (auto& it: *schema_) {
+    //     Log::debug("column: %d, %s%s", it.id, it.name.c_str(), it.primary ? ", primary" : "");
+    // }
 }
 
 Table::~Table() {
