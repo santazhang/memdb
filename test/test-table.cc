@@ -19,7 +19,13 @@ TEST(table, create) {
     Row* r1 = Row::create(schema, row1);
     t->insert(r1);
 
-    EXPECT_EQ(t->query(r1->get_key()), r1);
+    std::pair<Table::iterator, Table::iterator> query_range = t->query(r1->get_key());
+    std::list<Row*> query_result;
+    for (auto it = query_range.first; it != query_range.second; ++it) {
+        query_result.push_back(it->second);
+    }
+    EXPECT_EQ(query_result.size(), 1);
+    EXPECT_EQ(query_result.front(), r1);
     r1->release();
 
     map<string, Value> row2;
@@ -38,6 +44,15 @@ TEST(table, create) {
 
     // try removing row 3
     t->remove(Value((i32) 3));
+
+    // try removing all rows
+    int rows_left = 0;
+    auto it = t->begin();
+    while (it != t->end()) {
+        it = t->remove(it);
+        rows_left++;
+    }
+    EXPECT_EQ(rows_left, 2);
 
     t->release();
     schema->release();

@@ -34,6 +34,8 @@ public:
         };
     };
 
+    typedef std::vector<column_info>::iterator iterator;
+
     Schema(): var_size_cols_(0), fixed_part_size_(0), key_col_id_(-1) {}
 
     int add_column(const char* name, Value::kind type, bool key = false);
@@ -65,7 +67,6 @@ public:
         return &col_info_[column_id];
     }
 
-    typedef std::vector<column_info>::iterator iterator;
     iterator begin() {
         return std::begin(col_info_);
     }

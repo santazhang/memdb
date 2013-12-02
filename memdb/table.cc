@@ -20,12 +20,21 @@ Table::~Table() {
 void Table::insert(Row* row) {
     blob key_blob = row->get_key_blob();
     auto it = rows_.find(key_blob);
-    if (it != end(rows_)) {
+    if (it != rows_.end()) {
         Log::warn("duplicated key index value in memtable, will overwrite");
         it->second->release();
         rows_.erase(it);
     }
     insert_into_map(rows_, key_blob, (Row *) row->ref_copy());
+}
+
+Table::iterator Table::remove(iterator it) {
+    if (it != rows_.end()) {
+        it->second->release();
+        return rows_.erase(it);
+    } else {
+        return rows_.end();
+    }
 }
 
 } // namespace mdb

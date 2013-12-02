@@ -32,6 +32,11 @@ inline void insert_into_map(std::unordered_map<K, V, Hash, Equal>& dict, const K
     dict.insert(typename std::unordered_map<K, V, Hash, Equal>::value_type(key, value));
 }
 
+template<class K, class V, class Hash, class Equal>
+inline void insert_into_map(std::unordered_multimap<K, V, Hash, Equal>& dict, const K& key, const V& value) {
+    dict.insert(typename std::unordered_multimap<K, V, Hash, Equal>::value_type(key, value));
+}
+
 uint32_t stringhash32(const void* data, int len);
 
 inline uint32_t stringhash32(const std::string& str) {
