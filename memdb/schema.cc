@@ -36,8 +36,8 @@ int Schema::add_column(const char* name, Value::kind type, bool key /* =? */) {
         case Value::I64:
             fixed_part_size_ += sizeof(i64);
             break;
-        case Value::F64:
-            fixed_part_size_ += sizeof(f64);
+        case Value::DOUBLE:
+            fixed_part_size_ += sizeof(double);
             break;
         default:
             Log::fatal("value type %d not recognized", (int) type);

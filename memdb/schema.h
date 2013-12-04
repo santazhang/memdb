@@ -25,7 +25,7 @@ public:
         Value::kind type;
 
         union {
-            // if fixed size (i32, i64, f64)
+            // if fixed size (i32, i64, double)
             int fixed_size_offst;
 
             // if not fixed size (str)

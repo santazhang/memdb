@@ -24,8 +24,8 @@ Value Row::get_column(int column_id) const {
     case Value::I64:
         v = Value(*((i64*) &fixed_part_[info->fixed_size_offst]));
         break;
-    case Value::F64:
-        v = Value(*((f64*) &fixed_part_[info->fixed_size_offst]));
+    case Value::DOUBLE:
+        v = Value(*((double*) &fixed_part_[info->fixed_size_offst]));
         break;
     case Value::STR:
         {
@@ -62,9 +62,9 @@ blob Row::get_blob(int column_id) const {
         b.data = &fixed_part_[info->fixed_size_offst];
         b.len = sizeof(i64);
         break;
-    case Value::F64:
+    case Value::DOUBLE:
         b.data = &fixed_part_[info->fixed_size_offst];
-        b.len = sizeof(f64);
+        b.len = sizeof(double);
         break;
     case Value::STR:
         {
@@ -135,9 +135,9 @@ Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
             it->write_binary(&row->fixed_part_[fixed_pos]);
             fixed_pos += sizeof(i64);
             break;
-        case Value::F64:
+        case Value::DOUBLE:
             it->write_binary(&row->fixed_part_[fixed_pos]);
-            fixed_pos += sizeof(f64);
+            fixed_pos += sizeof(double);
             break;
         case Value::STR:
             var_part_size += it->get_str().size();

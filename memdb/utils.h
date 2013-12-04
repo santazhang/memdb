@@ -10,7 +10,6 @@ namespace mdb {
 
 using base::i32;
 using base::i64;
-using base::f64;
 using base::NoCopy;
 using base::Lockable;
 using base::SpinLock;

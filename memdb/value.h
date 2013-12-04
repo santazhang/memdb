@@ -17,21 +17,21 @@ public:
         UNKNOWN,
         I32,
         I64,
-        F64,
+        DOUBLE,
         STR
     } kind;
 
     Value(): k_(UNKNOWN) {}
     explicit Value(i32 v): k_(I32), i32_(v) {}
     explicit Value(i64 v): k_(I64), i64_(v) {}
-    explicit Value(f64 v): k_(F64), f64_(v) {}
+    explicit Value(double v): k_(DOUBLE), double_(v) {}
     explicit Value(const std::string& v): k_(STR), p_str_(new std::string(v)) {}
 
     Value(const Value& o) {
         k_ = o.k_;
         i32_ = o.i32_;
         i64_ = o.i64_;
-        f64_ = o.f64_;
+        double_ = o.double_;
         if (k_ == STR) {
             p_str_ = new std::string(*o.p_str_);
         }
@@ -51,7 +51,7 @@ public:
             k_ = o.k_;
             i32_ = o.i32_;
             i64_ = o.i64_;
-            f64_ = o.f64_;
+            double_ = o.double_;
             if (k_ == STR) {
                 p_str_ = new std::string(*o.p_str_);
             }
@@ -97,9 +97,9 @@ public:
         return i64_;
     }
 
-    f64 get_f64() const {
-        verify(k_ == F64);
-        return f64_;
+    double get_double() const {
+        verify(k_ == DOUBLE);
+        return double_;
     }
 
     const std::string& get_str() const {
@@ -123,12 +123,12 @@ public:
         i64_ = v;
     }
 
-    void set_f64(f64 v) {
+    void set_double(double v) {
         if (k_ == UNKNOWN) {
-            k_ = F64;
+            k_ = DOUBLE;
         }
-        verify(k_ == F64);
-        f64_ = v;
+        verify(k_ == DOUBLE);
+        double_ = v;
     }
 
     void set_str(const std::string& str) {
@@ -151,7 +151,7 @@ private:
     union {
         i32 i32_;
         i64 i64_;
-        f64 f64_;
+        double double_;
         std::string* p_str_;
     };
 };

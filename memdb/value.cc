@@ -29,10 +29,10 @@ int Value::compare(const Value& o) const {
         }
         break;
 
-    case F64:
-        if (f64_ < o.f64_) {
+    case DOUBLE:
+        if (double_ < o.double_) {
             return -1;
-        } else if (f64_ == o.f64_) {
+        } else if (double_ == o.double_) {
             return 0;
         } else {
             return 1;
@@ -67,8 +67,8 @@ void Value::write_binary(char* buf) const {
     case Value::I64:
         memcpy(buf, &i64_, sizeof(i64));
         break;
-    case Value::F64:
-        memcpy(buf, &f64_, sizeof(f64));
+    case Value::DOUBLE:
+        memcpy(buf, &double_, sizeof(double));
         break;
     case Value::STR:
         memcpy(buf, &((*p_str_)[0]), p_str_->size());
@@ -91,9 +91,9 @@ blob Value::get_blob() const {
         b.data = (const char *) &i64_;
         b.len = sizeof(i64);
         break;
-    case Value::F64:
-        b.data = (const char *) &f64_;
-        b.len = sizeof(f64);
+    case Value::DOUBLE:
+        b.data = (const char *) &double_;
+        b.len = sizeof(double);
         break;
     case Value::STR:
         b.data = &((*p_str_)[0]);
@@ -118,8 +118,8 @@ std::ostream& operator<< (std::ostream& o, const Value& v) {
     case Value::I64:
         o << "I64:" << v.i64_;
         break;
-    case Value::F64:
-        o << "F64:" << v.f64_;
+    case Value::DOUBLE:
+        o << "DOUBLE:" << v.double_;
         break;
     case Value::STR:
         o << "STR:" << *v.p_str_;

@@ -5,7 +5,7 @@ using namespace base;
 using namespace mdb;
 
 TEST(schema, create) {
-    verify(sizeof(f64) == 8);
+    verify(sizeof(double) == 8);
 
     Schema* schema = new Schema;
     EXPECT_EQ(schema->get_column_info("no_such_column"), (void *) nullptr);
@@ -22,10 +22,10 @@ TEST(schema, create) {
     EXPECT_EQ(schema->get_column_info(schema->get_column_id("id_2"))->type, Value::I64);
     EXPECT_EQ(schema->get_column_id("id_2"), 1);
 
-    schema->add_column("double_col", Value::F64);  // 12~11
+    schema->add_column("double_col", Value::DOUBLE);  // 12~11
     EXPECT_EQ(schema->get_column_info("double_col")->fixed_size_offst, 12);
-    EXPECT_EQ(schema->get_column_info("double_col")->type, Value::F64);
-    EXPECT_EQ(schema->get_column_info(schema->get_column_id("double_col"))->type, Value::F64);
+    EXPECT_EQ(schema->get_column_info("double_col")->type, Value::DOUBLE);
+    EXPECT_EQ(schema->get_column_info(schema->get_column_id("double_col"))->type, Value::DOUBLE);
     EXPECT_EQ(schema->get_column_id("double_col"), 2);
 
     schema->add_column("str_1", Value::STR);  // 12~11
