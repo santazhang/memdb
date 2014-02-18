@@ -157,5 +157,6 @@ private:
 };
 
 std::ostream& operator<< (std::ostream& o, const Value& v);
+std::string to_string(const Value& v);
 
 } // namespace mdb

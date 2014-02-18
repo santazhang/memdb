@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include "value.h"
 
 namespace mdb {
@@ -130,6 +132,12 @@ std::ostream& operator<< (std::ostream& o, const Value& v) {
         break;
     }
     return o;
+}
+
+std::string to_string(const Value& v) {
+    std::ostringstream o;
+    o << v;
+    return o.str();
 }
 
 } // namespace mdb
