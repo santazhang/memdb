@@ -1,4 +1,4 @@
-APPNAME="persist-kv"
+APPNAME="memdb"
 VERSION="0.1"
 
 def options(opt):
