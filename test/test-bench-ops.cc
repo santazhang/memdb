@@ -12,7 +12,7 @@ TEST(bench, table_insert) {
     schema->add_key_column("id", Value::I32);
     schema->add_column("name", Value::STR);
 
-    Table* t = new Table(schema);
+    UnsortedTable* ut = new UnsortedTable(schema);
 
     const int n = 1000 * 1000;
     Timer timer;
@@ -20,13 +20,13 @@ TEST(bench, table_insert) {
     for (int i = 0; i < n; i++) {
         vector<Value> row = { Value((i32) i), Value("dummy!") };
         Row* r = Row::create(schema, row);
-        t->insert(r);
+        ut->insert(r);
     }
     timer.stop();
     Log::info("inserting %d rows times takes %.2lf seconds, op/s=%.0lf",
         n, timer.elapsed(), n / timer.elapsed());
 
-    delete t;
+    delete ut;
 }
 
 TEST(bench, stringhash32) {

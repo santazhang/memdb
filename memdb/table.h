@@ -12,13 +12,13 @@
 
 namespace mdb {
 
-class Table {
+class UnsortedTable {
 public:
     typedef std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash>::const_iterator iterator;
 
-    Table(Schema* schema): schema_(schema) {}
+    UnsortedTable(Schema* schema): schema_(schema) {}
 
-    ~Table();
+    ~UnsortedTable();
 
     void insert(Row* row) {
         MultiBlob key = row->get_key();

@@ -3,14 +3,14 @@
 
 namespace mdb {
 
-Table::~Table() {
+UnsortedTable::~UnsortedTable() {
     for (auto& it: rows_) {
         delete it.second;
     }
     delete schema_;
 }
 
-Table::iterator Table::remove(iterator it) {
+UnsortedTable::iterator UnsortedTable::remove(iterator it) {
     if (it != rows_.end()) {
         delete it->second;
         return rows_.erase(it);
