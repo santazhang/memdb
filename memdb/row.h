@@ -11,24 +11,53 @@ namespace mdb {
 
 // forward declartion
 class Schema;
+class Table;
 
 class Row: public NoCopy {
     // fixed size part
     char* fixed_part_;
 
-    // var size part
-    char* var_part_;
+    enum {
+        DENSE,
+        SPARSE,
+    };
 
-    // index table for var size part
-    int* var_idx_;
+    int kind_;
+
+    union {
+        // for DENSE rows
+        struct {
+            // var size part
+            char* dense_var_part_;
+
+            // index table for var size part
+            int* dense_var_idx_;
+        };
+
+        // for SPARSE rows
+        std::string* sparse_var_;
+    };
 
     Schema* schema_;
+    Table* tbl_;
 
     // private ctor, factory model
-    Row(): fixed_part_(nullptr), var_part_(nullptr), var_idx_(nullptr), schema_(nullptr) {}
+    Row(): fixed_part_(nullptr), kind_(DENSE),
+           dense_var_part_(nullptr), dense_var_idx_(nullptr),
+           schema_(nullptr), tbl_(nullptr) {}
 
 public:
     ~Row();
+
+    const Schema* schema() const {
+        return schema_;
+    }
+
+    void make_sparse();
+    void set_table(Table* tbl) {
+        verify(tbl_ == nullptr);
+        tbl_ = tbl;
+    }
 
     Value get_column(int column_id) const;
     Value get_column(const std::string& col_name) const {

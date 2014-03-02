@@ -7,9 +7,44 @@ namespace mdb {
 Row::~Row() {
     delete[] fixed_part_;
     if (schema_->var_size_cols_ > 0) {
-        delete[] var_part_;
-        delete[] var_idx_;
+        if (kind_ == DENSE) {
+            delete[] dense_var_part_;
+            delete[] dense_var_idx_;
+        } else {
+            verify(kind_ == SPARSE);
+            delete[] sparse_var_;
+        }
     }
+}
+
+void Row::make_sparse() {
+    if (kind_ == SPARSE) {
+        // already sparse data
+        return;
+    }
+
+    kind_ = SPARSE;
+
+    if (schema_->var_size_cols_ == 0) {
+        // special case, no memory copying required
+        return;
+    }
+
+    // save those 2 values to prevent overwriting (union type!)
+    char* var_data = dense_var_part_;
+    int* var_idx = dense_var_idx_;
+
+    assert(schema_->var_size_cols_ > 0);
+    sparse_var_ = new std::string[schema_->var_size_cols_];
+    sparse_var_[0] = std::string(var_data, var_idx[0]);
+    for (int i = 1; i < schema_->var_size_cols_; i++) {
+        int var_start = var_idx[i - 1];
+        int var_len = var_idx[i] - var_idx[i - 1];
+        sparse_var_[i] = std::string(&var_data[var_start], var_len);
+    }
+
+    delete[] var_data;
+    delete[] var_idx;
 }
 
 Value Row::get_column(int column_id) const {
@@ -27,17 +62,20 @@ Value Row::get_column(int column_id) const {
         v = Value(*((double*) &fixed_part_[info->fixed_size_offst]));
         break;
     case Value::STR:
-        {
+        if (kind_ == DENSE) {
             int var_start = 0;
             int var_len = 0;
             if (info->var_size_idx == 0) {
                 var_start = 0;
-                var_len = var_idx_[0];
+                var_len = dense_var_idx_[0];
             } else {
-                var_start = var_idx_[info->var_size_idx - 1];
-                var_len = var_idx_[info->var_size_idx] - var_idx_[info->var_size_idx - 1];
+                var_start = dense_var_idx_[info->var_size_idx - 1];
+                var_len = dense_var_idx_[info->var_size_idx] - dense_var_idx_[info->var_size_idx - 1];
             }
-            v = Value(std::string(&var_part_[var_start], var_len));
+            v = Value(std::string(&dense_var_part_[var_start], var_len));
+        } else {
+            verify(kind_ == SPARSE);
+            v = Value(sparse_var_[info->var_size_idx]);
         }
         break;
     default:
@@ -75,18 +113,22 @@ blob Row::get_blob(int column_id) const {
         b.len = sizeof(double);
         break;
     case Value::STR:
-        {
+        if (kind_ == DENSE) {
             int var_start = 0;
             int var_len = 0;
             if (info->var_size_idx == 0) {
                 var_start = 0;
-                var_len = var_idx_[0];
+                var_len = dense_var_idx_[0];
             } else {
-                var_start = var_idx_[info->var_size_idx - 1];
-                var_len = var_idx_[info->var_size_idx] - var_idx_[info->var_size_idx - 1];
+                var_start = dense_var_idx_[info->var_size_idx - 1];
+                var_len = dense_var_idx_[info->var_size_idx] - dense_var_idx_[info->var_size_idx - 1];
             }
-            b.data = &var_part_[var_start];
+            b.data = &dense_var_part_[var_start];
             b.len = var_len;
+        } else {
+            verify(kind_ == SPARSE);
+            b.data = &(sparse_var_[info->var_size_idx][0]);
+            b.len = sparse_var_[info->var_size_idx].size();
         }
         break;
     default:
@@ -134,7 +176,7 @@ Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
     row->schema_ = schema;
     row->fixed_part_ = new char[schema->fixed_part_size_];
     if (schema->var_size_cols_ > 0) {
-        row->var_idx_ = new int[schema->var_size_cols_];
+        row->dense_var_idx_ = new int[schema->var_size_cols_];
     }
 
     // 1st pass, write fixed part, and calculate var part size
@@ -169,11 +211,11 @@ Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
         // 2nd pass, write var part
         int var_counter = 0;
         int var_pos = 0;
-        row->var_part_ = new char[var_part_size];
+        row->dense_var_part_ = new char[var_part_size];
         for (auto& it: values) {
             if (it->get_kind() == Value::STR) {
-                row->var_idx_[var_counter] = it->get_str().size();
-                it->write_binary(&row->var_part_[var_pos]);
+                row->dense_var_idx_[var_counter] = it->get_str().size();
+                it->write_binary(&row->dense_var_part_[var_pos]);
                 var_counter++;
                 var_pos += it->get_str().size();
             }
