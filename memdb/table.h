@@ -62,23 +62,8 @@ public:
     void remove(const Value& kv) {
         remove(kv.get_blob());
     }
-    void remove(const MultiBlob& key) {
-        auto query_range = rows_.equal_range(key);
-        iterator it = query_range.first;
-        while (it != query_range.second) {
-            it = remove(it);
-        }
-    }
-    void remove(Row* row, bool do_free = true) {
-        auto query_range = rows_.equal_range(row->get_key());
-        iterator it = query_range.first;
-        while (it != query_range.second) {
-            if (it->second == row) {
-                remove(it, do_free);
-                break;
-            }
-        }
-    }
+    void remove(const MultiBlob& key);
+    void remove(Row* row, bool do_free = true);
 
 private:
 
