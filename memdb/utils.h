@@ -18,6 +18,11 @@ inline void insert_into_map(std::map<K, V>& dict, const K& key, const V& value) 
     dict.insert(typename std::map<K, V>::value_type(key, value));
 }
 
+template<class K, class V>
+inline void insert_into_map(std::multimap<K, V>& dict, const K& key, const V& value) {
+    dict.insert(typename std::multimap<K, V>::value_type(key, value));
+}
+
 template<class K, class V, class Hash, class Equal>
 inline void insert_into_map(std::unordered_map<K, V, Hash, Equal>& dict, const K& key, const V& value) {
     dict.insert(typename std::unordered_map<K, V, Hash, Equal>::value_type(key, value));
