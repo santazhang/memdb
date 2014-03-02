@@ -59,6 +59,26 @@ public:
         }
         return *this;
     }
+    const Value& operator= (i32 v) {
+        *this = Value(v);
+        return *this;
+    }
+    const Value& operator= (i64 v) {
+        *this = Value(v);
+        return *this;
+    }
+    const Value& operator= (double v) {
+        *this = Value(v);
+        return *this;
+    }
+    const Value& operator= (const std::string& s) {
+        *this = Value(s);
+        return *this;
+    }
+    const Value& operator= (const char* str) {
+        *this = Value(str);
+        return *this;
+    }
 
     // -1: this < o, 0: this == o, 1: this > o
     // UNKNOWN == UNKNOWN

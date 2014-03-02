@@ -30,7 +30,7 @@ TEST(value, insert_into_map) {
     insert_into_map(row, string("id"), Value(2));
     row["name"] = "alice";
     // check for overwriting, use valgrind to detect memory leak
-    row["name"] = Value("bob");
+    row["name"] = "bob";
 }
 
 TEST(value, to_string) {

@@ -15,7 +15,7 @@ TEST(table, create) {
 
     UnsortedTable* ut = new UnsortedTable(schema);
 
-    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    vector<Value> row1 = { (i32) 1, "alice" };
     Row* r1 = Row::create(schema, row1);
     ut->insert(r1);
 
@@ -24,18 +24,18 @@ TEST(table, create) {
     while (cursor) {
         query_result.push_back(cursor.next());
     }
-    EXPECT_EQ(query_result.size(), 1);
+    EXPECT_EQ(query_result.size(), 1u);
     EXPECT_EQ(query_result.front(), r1);
 
     map<string, Value> row2;
-    row2["id"] = Value((i32) 2);
-    row2["name"] = Value("bob");
+    row2["id"] = (i32) 2;
+    row2["name"] = "bob";
     Row* r2 = Row::create(schema, row2);
     ut->insert(r2);
 
     unordered_map<string, Value> row3;
-    row3["id"] = Value((i32) 3);
-    row3["name"] = Value("cathy");
+    row3["id"] = (i32) 3;
+    row3["name"] = "cathy";
     Row* r3 = Row::create(schema, row3);
     ut->insert(r3);
 
