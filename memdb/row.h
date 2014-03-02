@@ -3,6 +3,7 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 #include "utils.h"
 #include "schema.h"
@@ -46,6 +47,8 @@ class Row: public NoCopy {
            dense_var_part_(nullptr), dense_var_idx_(nullptr),
            schema_(nullptr), tbl_(nullptr) {}
 
+    void update_fixed(const Schema::column_info* col, void* ptr, int len);
+
 public:
     ~Row();
 
@@ -68,6 +71,40 @@ public:
     blob get_blob(int column_id) const;
     blob get_blob(const std::string& col_name) const {
         return get_blob(schema_->get_column_id(col_name));
+    }
+
+    void update(int column_id, i32 v) {
+        const Schema::column_info* info = schema_->get_column_info(column_id);
+        verify(info->type == Value::I32);
+        update_fixed(info, &v, sizeof(v));
+    }
+    void update(int column_id, i64 v) {
+        const Schema::column_info* info = schema_->get_column_info(column_id);
+        verify(info->type == Value::I64);
+        update_fixed(info, &v, sizeof(v));
+    }
+    void update(int column_id, double v) {
+        const Schema::column_info* info = schema_->get_column_info(column_id);
+        verify(info->type == Value::DOUBLE);
+        update_fixed(info, &v, sizeof(v));
+    }
+    void update(int column_id, const std::string& v);
+    void update(int column_id, const Value& v);
+
+    void update(const std::string& col_name, i32 v) {
+        this->update(schema_->get_column_id(col_name), v);
+    }
+    void update(const std::string& col_name, i64 v) {
+        this->update(schema_->get_column_id(col_name), v);
+    }
+    void update(const std::string& col_name, double v) {
+        this->update(schema_->get_column_id(col_name), v);
+    }
+    void update(const std::string& col_name, const std::string& v) {
+        this->update(schema_->get_column_id(col_name), v);
+    }
+    void update(const std::string& col_name, const Value& v) {
+        this->update(schema_->get_column_id(col_name), v);
     }
 
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);

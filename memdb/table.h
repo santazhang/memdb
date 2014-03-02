@@ -16,6 +16,7 @@ class Table {
 public:
     virtual ~Table() {}
     virtual void insert(Row* row) = 0;
+    virtual void remove(Row* row, bool do_free = true) = 0;
 };
 
 class UnsortedTable: public Table {

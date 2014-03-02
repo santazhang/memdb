@@ -1,6 +1,7 @@
 #include "value.h"
 #include "row.h"
 #include "schema.h"
+#include "table.h"
 
 namespace mdb {
 
@@ -137,6 +138,93 @@ blob Row::get_blob(int column_id) const {
         break;
     }
     return b;
+}
+
+void Row::update_fixed(const Schema::column_info* col, void* ptr, int len) {
+    // check if really updating (new data!), and if necessary to remove/insert into table
+    bool re_insert = false;
+    if (memcmp(&fixed_part_[col->fixed_size_offst], ptr, len) == 0) {
+        // not really updating
+        return;
+    }
+
+    if (col->key) {
+        re_insert = true;
+    }
+
+    if (re_insert && tbl_ != nullptr) {
+        tbl_->remove(this, false);
+    }
+
+    memcpy(&fixed_part_[col->fixed_size_offst], ptr, len);
+
+    if (re_insert && tbl_ != nullptr) {
+        tbl_->insert(this);
+    }
+}
+
+void Row::update(int column_id, const std::string& v) {
+    const Schema::column_info* col = schema_->get_column_info(column_id);
+    verify(col->type == Value::STR);
+
+    // check if really updating (new data!), and if necessary to remove/insert into table
+    bool re_insert = false;
+
+    if (kind_ == SPARSE) {
+        if (this->sparse_var_[col->var_size_idx] == v) {
+            return;
+        }
+    } else {
+        verify(kind_ == DENSE);
+        int var_start = 0;
+        int var_len = 0;
+        if (col->var_size_idx == 0) {
+            var_start = 0;
+            var_len = dense_var_idx_[0];
+        } else {
+            var_start = dense_var_idx_[col->var_size_idx - 1];
+            var_len = dense_var_idx_[col->var_size_idx] - dense_var_idx_[col->var_size_idx - 1];
+        }
+        if (memcmp(&dense_var_part_[var_start], &v[0], v.size()) == 0) {
+            return;
+        }
+    }
+
+    if (col->key) {
+        re_insert = true;
+    }
+
+    if (re_insert && tbl_ != nullptr) {
+        tbl_->remove(this, false);
+    }
+
+    this->make_sparse();
+    this->sparse_var_[col->var_size_idx] = v;
+
+    if (re_insert && tbl_ != nullptr) {
+        tbl_->insert(this);
+    }
+}
+
+void Row::update(int column_id, const Value& v) {
+    switch (v.get_kind()) {
+    case Value::I32:
+        this->update(column_id, v.get_i32());
+        break;
+    case Value::I64:
+        this->update(column_id, v.get_i64());
+        break;
+    case Value::DOUBLE:
+        this->update(column_id, v.get_double());
+        break;
+    case Value::STR:
+        this->update(column_id, v.get_str());
+        break;
+    default:
+        Log::fatal("unexpected value type %d", v.get_kind());
+        verify(0);
+        break;
+    }
 }
 
 Row* Row::create(Schema* schema, const std::map<std::string, Value>& values) {
