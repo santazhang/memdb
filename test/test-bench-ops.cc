@@ -14,15 +14,23 @@ TEST(bench, table_insert) {
 
     UnsortedTable* ut = new UnsortedTable(schema);
 
-    const int n = 1000 * 1000;
+    const int batch_size = 100000;
+    int n_batches = 0;
     Timer timer;
     timer.start();
-    for (int i = 0; i < n; i++) {
-        vector<Value> row = { Value((i32) i), Value("dummy!") };
-        Row* r = Row::create(schema, row);
-        ut->insert(r);
+    for (;;) {
+        for (int i = 0; i < batch_size; i++) {
+            vector<Value> row = { Value((i32) i), Value("dummy!") };
+            Row* r = Row::create(schema, row);
+            ut->insert(r);
+        }
+        n_batches++;
+        if (timer.elapsed() > 2.0) {
+            break;
+        }
     }
     timer.stop();
+    int n = n_batches * batch_size;
     Log::info("inserting %d rows times takes %.2lf seconds, op/s=%.0lf",
         n, timer.elapsed(), n / timer.elapsed());
 
@@ -30,14 +38,22 @@ TEST(bench, table_insert) {
 }
 
 TEST(bench, stringhash32) {
-    const int n = 1000 * 1000 * 10;
     string str = "hello, world";
+    const int batch_size = 100000;
+    int n_batches = 0;
     Timer t;
     t.start();
-    for (int i = 0; i < n; i++) {
-        stringhash32(str);
+    for (;;) {
+        for (int i = 0; i < batch_size; i++) {
+            stringhash32(str);
+        }
+        n_batches++;
+        if (t.elapsed() > 2.0) {
+            break;
+        }
     }
     t.stop();
+    int n = n_batches * batch_size;
     Log::info("stringhash32('%s') %d times takes %.2lf seconds, op/s=%.0lf",
         str.c_str(), n, t.elapsed(), n / t.elapsed());
 }
