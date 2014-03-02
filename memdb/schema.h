@@ -65,11 +65,11 @@ public:
         return &col_info_[column_id];
     }
 
-    typedef std::vector<column_info>::iterator iterator;
-    iterator begin() {
+    typedef std::vector<column_info>::const_iterator iterator;
+    iterator begin() const {
         return std::begin(col_info_);
     }
-    iterator end() {
+    iterator end() const {
         return std::end(col_info_);
     }
     size_t columns_count() const {

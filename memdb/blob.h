@@ -28,7 +28,7 @@ class MultiBlob {
     int count_;
 
 public:
-    MultiBlob(int n = 0): blobs_(nullptr), count_(n) {
+    explicit MultiBlob(int n = 0): blobs_(nullptr), count_(n) {
         if (count_ > 0) {
             blobs_ = new blob[count_];
         }

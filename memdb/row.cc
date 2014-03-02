@@ -139,14 +139,16 @@ void Row::update_fixed(const Schema::column_info* col, void* ptr, int len) {
         re_insert = true;
     }
 
-    if (re_insert && tbl_ != nullptr) {
-        tbl_->remove(this, false);
+    // save tbl_, because tbl_->remove() will set it to nullptr
+    Table* tbl = tbl_;
+    if (re_insert && tbl != nullptr) {
+        tbl->remove(this, false);
     }
 
     memcpy(&fixed_part_[col->fixed_size_offst], ptr, len);
 
-    if (re_insert && tbl_ != nullptr) {
-        tbl_->insert(this);
+    if (re_insert && tbl != nullptr) {
+        tbl->insert(this);
     }
 }
 
@@ -173,15 +175,17 @@ void Row::update(int column_id, const std::string& v) {
         re_insert = true;
     }
 
-    if (re_insert && tbl_ != nullptr) {
-        tbl_->remove(this, false);
+    // save tbl_, because tbl_->remove() will set it to nullptr
+    Table* tbl = tbl_;
+    if (re_insert && tbl != nullptr) {
+        tbl->remove(this, false);
     }
 
     this->make_sparse();
     this->sparse_var_[col->var_size_idx] = v;
 
-    if (re_insert && tbl_ != nullptr) {
-        tbl_->insert(this);
+    if (re_insert && tbl != nullptr) {
+        tbl->insert(this);
     }
 }
 

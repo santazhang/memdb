@@ -39,7 +39,7 @@ class Row: public NoCopy {
         std::string* sparse_var_;
     };
 
-    Schema* schema_;
+    const Schema* schema_;
     Table* tbl_;
 
     // private ctor, factory model
@@ -58,7 +58,9 @@ public:
 
     void make_sparse();
     void set_table(Table* tbl) {
-        verify(tbl_ == nullptr);
+        if (tbl != nullptr) {
+            verify(tbl_ == nullptr);
+        }
         tbl_ = tbl;
     }
 

@@ -37,6 +37,7 @@ public:
             return has_next();
         }
         Row* next() {
+            verify(next_ != end_);
             Row* row = next_->second;
             ++next_;
             return row;
@@ -55,6 +56,10 @@ public:
     UnsortedTable(Schema* schema): schema_(schema) {}
 
     virtual ~UnsortedTable();
+
+    const Schema* schema() const {
+        return schema_;
+    }
 
     void insert(Row* row) {
         MultiBlob key = row->get_key();
@@ -86,7 +91,7 @@ private:
 
     iterator remove(iterator it, bool do_free = true);
 
-    Schema* schema_;
+    const Schema* schema_;
 
     // indexed by key values
     std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash> rows_;

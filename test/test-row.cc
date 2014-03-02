@@ -78,8 +78,44 @@ TEST(row, make_sparse) {
 
 TEST(row, update) {
     Schema* schema = new Schema;
-    schema->add_column("id", Value::I32);
+    schema->add_key_column("id", Value::I32);
     schema->add_column("name", Value::STR);
+
+    vector<Value> row1 = { Value(1), Value("alice") };
+    Row* r1 = Row::create(schema, row1);
+    EXPECT_EQ(r1->get_column("id").get_i32(), 1);
+    EXPECT_EQ(r1->get_column("name").get_str(), "alice");
+    r1->update(0, (i32) 4);
+    r1->update("name", "david awesome");
+    EXPECT_EQ(r1->get_column("id").get_i32(), 4);
+    EXPECT_EQ(r1->get_column("name").get_str(), "david awesome");
+    delete r1;
+
+    delete schema;
+}
+
+TEST(row, update_string_key_column) {
+    Schema* schema = new Schema;
+    schema->add_column("id", Value::I32);
+    schema->add_key_column("name", Value::STR);
+
+    vector<Value> row1 = { Value(1), Value("alice") };
+    Row* r1 = Row::create(schema, row1);
+    EXPECT_EQ(r1->get_column("id").get_i32(), 1);
+    EXPECT_EQ(r1->get_column("name").get_str(), "alice");
+    r1->update(0, (i32) 4);
+    r1->update("name", "david awesome");
+    EXPECT_EQ(r1->get_column("id").get_i32(), 4);
+    EXPECT_EQ(r1->get_column("name").get_str(), "david awesome");
+    delete r1;
+
+    delete schema;
+}
+
+TEST(row, update_compound_key) {
+    Schema* schema = new Schema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_key_column("name", Value::STR);
 
     vector<Value> row1 = { Value(1), Value("alice") };
     Row* r1 = Row::create(schema, row1);

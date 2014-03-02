@@ -30,6 +30,7 @@ void UnsortedTable::remove(Row* row, bool do_free /* =? */) {
     iterator it = query_range.first;
     while (it != query_range.second) {
         if (it->second == row) {
+            it->second->set_table(nullptr);
             remove(it, do_free);
             break;
         }
