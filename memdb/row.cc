@@ -51,33 +51,20 @@ void Row::make_sparse() {
 Value Row::get_column(int column_id) const {
     Value v;
     const Schema::column_info* info = schema_->get_column_info(column_id);
+    blob b = this->get_blob(column_id);
     verify(info != nullptr);
     switch (info->type) {
     case Value::I32:
-        v = Value(*((i32*) &fixed_part_[info->fixed_size_offst]));
+        v = Value(*((i32*) b.data));
         break;
     case Value::I64:
-        v = Value(*((i64*) &fixed_part_[info->fixed_size_offst]));
+        v = Value(*((i64*) b.data));
         break;
     case Value::DOUBLE:
-        v = Value(*((double*) &fixed_part_[info->fixed_size_offst]));
+        v = Value(*((double*) b.data));
         break;
     case Value::STR:
-        if (kind_ == DENSE) {
-            int var_start = 0;
-            int var_len = 0;
-            if (info->var_size_idx == 0) {
-                var_start = 0;
-                var_len = dense_var_idx_[0];
-            } else {
-                var_start = dense_var_idx_[info->var_size_idx - 1];
-                var_len = dense_var_idx_[info->var_size_idx] - dense_var_idx_[info->var_size_idx - 1];
-            }
-            v = Value(std::string(&dense_var_part_[var_start], var_len));
-        } else {
-            verify(kind_ == SPARSE);
-            v = Value(sparse_var_[info->var_size_idx]);
-        }
+        v = Value(std::string(b.data, b.len));
         break;
     default:
         Log::fatal("unexpected value type %d", info->type);
@@ -176,16 +163,8 @@ void Row::update(int column_id, const std::string& v) {
         }
     } else {
         verify(kind_ == DENSE);
-        int var_start = 0;
-        int var_len = 0;
-        if (col->var_size_idx == 0) {
-            var_start = 0;
-            var_len = dense_var_idx_[0];
-        } else {
-            var_start = dense_var_idx_[col->var_size_idx - 1];
-            var_len = dense_var_idx_[col->var_size_idx] - dense_var_idx_[col->var_size_idx - 1];
-        }
-        if (memcmp(&dense_var_part_[var_start], &v[0], v.size()) == 0) {
+        blob b = this->get_blob(column_id);
+        if (b.len == v.size() && memcmp(b.data, &v[0], v.size()) == 0) {
             return;
         }
     }
