@@ -13,8 +13,27 @@
 namespace mdb {
 
 class UnsortedTable {
-public:
     typedef std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash>::const_iterator iterator;
+
+public:
+
+    class Cursor {
+        iterator begin_, end_, next_;
+    public:
+        Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin) {}
+
+        bool has_next() const {
+            return next_ != end_;
+        }
+        operator bool () const {
+            return has_next();
+        }
+        Row* next() {
+            Row* row = next_->second;
+            ++next_;
+            return row;
+        }
+    };
 
     UnsortedTable(Schema* schema): schema_(schema) {}
 
@@ -25,33 +44,46 @@ public:
         insert_into_map(rows_, key, row);
     }
 
-    iterator begin() {
-        return std::begin(rows_);
-    }
-    iterator end() {
-        return std::end(rows_);
-    }
-
-    std::pair<iterator, iterator> query(const Value& kv) {
+    Cursor query(const Value& kv) {
         return query(kv.get_blob());
     }
-    std::pair<iterator, iterator> query(const MultiBlob& key) {
-        return rows_.equal_range(key);
+    Cursor query(const MultiBlob& key) {
+        auto range = rows_.equal_range(key);
+        return Cursor(range.first, range.second);
+    }
+    Cursor all() {
+        return Cursor(std::begin(rows_), std::end(rows_));
+    }
+
+    void clear() {
+        rows_.clear();
     }
 
     void remove(const Value& kv) {
         remove(kv.get_blob());
     }
     void remove(const MultiBlob& key) {
-        std::pair<iterator, iterator> query_range = query(key);
-        auto it = query_range.first;
+        auto query_range = rows_.equal_range(key);
+        iterator it = query_range.first;
         while (it != query_range.second) {
             it = remove(it);
         }
     }
-    iterator remove(iterator it);
+    void remove(Row* row, bool do_free = true) {
+        auto query_range = rows_.equal_range(row->get_key());
+        iterator it = query_range.first;
+        while (it != query_range.second) {
+            if (it->second == row) {
+                remove(it, do_free);
+                break;
+            }
+        }
+    }
 
 private:
+
+    iterator remove(iterator it, bool do_free = true);
+
     Schema* schema_;
 
     // indexed by key values

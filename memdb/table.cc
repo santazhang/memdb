@@ -10,9 +10,11 @@ UnsortedTable::~UnsortedTable() {
     delete schema_;
 }
 
-UnsortedTable::iterator UnsortedTable::remove(iterator it) {
+UnsortedTable::iterator UnsortedTable::remove(iterator it, bool do_free /* =? */) {
     if (it != rows_.end()) {
-        delete it->second;
+        if (do_free) {
+            delete it->second;
+        }
         return rows_.erase(it);
     } else {
         return rows_.end();

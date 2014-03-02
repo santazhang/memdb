@@ -19,10 +19,10 @@ TEST(table, create) {
     Row* r1 = Row::create(schema, row1);
     ut->insert(r1);
 
-    std::pair<UnsortedTable::iterator, UnsortedTable::iterator> query_range = ut->query(r1->get_key());
+    UnsortedTable::Cursor cursor = ut->query(r1->get_key());
     std::list<Row*> query_result;
-    for (auto it = query_range.first; it != query_range.second; ++it) {
-        query_result.push_back(it->second);
+    while (cursor) {
+        query_result.push_back(cursor.next());
     }
     EXPECT_EQ(query_result.size(), 1);
     EXPECT_EQ(query_result.front(), r1);
@@ -43,13 +43,7 @@ TEST(table, create) {
     ut->remove(Value((i32) 3));
 
     // try removing all rows
-    int rows_left = 0;
-    auto it = ut->begin();
-    while (it != ut->end()) {
-        it = ut->remove(it);
-        rows_left++;
-    }
-    EXPECT_EQ(rows_left, 2);
+    ut->clear();
 
     delete ut;
 }
