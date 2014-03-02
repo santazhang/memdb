@@ -12,7 +12,7 @@ namespace mdb {
 // forward declartion
 class Schema;
 
-class Row: public RefCounted {
+class Row: public NoCopy {
     // fixed size part
     char* fixed_part_;
 
@@ -27,11 +27,9 @@ class Row: public RefCounted {
     // private ctor, factory model
     Row(): fixed_part_(nullptr), var_part_(nullptr), var_idx_(nullptr), schema_(nullptr) {}
 
-protected:
-    // protected dtor as requried by RefCounted
+public:
     ~Row();
 
-public:
     Value get_column(int column_id) const;
     Value get_column(const std::string& col_name) const {
         return get_column(schema_->get_column_id(col_name));

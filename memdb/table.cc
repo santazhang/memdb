@@ -5,14 +5,14 @@ namespace mdb {
 
 Table::~Table() {
     for (auto& it: rows_) {
-        it.second->release();
+        delete it.second;
     }
     delete schema_;
 }
 
 Table::iterator Table::remove(iterator it) {
     if (it != rows_.end()) {
-        it->second->release();
+        delete it->second;
         return rows_.erase(it);
     } else {
         return rows_.end();

@@ -26,21 +26,18 @@ TEST(table, create) {
     }
     EXPECT_EQ(query_result.size(), 1);
     EXPECT_EQ(query_result.front(), r1);
-    r1->release();
 
     map<string, Value> row2;
     row2["id"] = Value((i32) 2);
     row2["name"] = Value("bob");
     Row* r2 = Row::create(schema, row2);
     t->insert(r2);
-    r2->release();
 
     unordered_map<string, Value> row3;
     row3["id"] = Value((i32) 3);
     row3["name"] = Value("cathy");
     Row* r3 = Row::create(schema, row3);
     t->insert(r3);
-    r3->release();
 
     // try removing row 3
     t->remove(Value((i32) 3));
@@ -54,5 +51,5 @@ TEST(table, create) {
     }
     EXPECT_EQ(rows_left, 2);
 
-    t->release();
+    delete t;
 }

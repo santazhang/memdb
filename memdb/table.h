@@ -12,15 +12,17 @@
 
 namespace mdb {
 
-class Table: public RefCounted {
+class Table {
 public:
     typedef std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash>::const_iterator iterator;
 
     Table(Schema* schema): schema_(schema) {}
 
+    ~Table();
+
     void insert(Row* row) {
         MultiBlob key = row->get_key();
-        insert_into_map(rows_, key, (Row *) row->ref_copy());
+        insert_into_map(rows_, key, row);
     }
 
     iterator begin() {
@@ -48,10 +50,6 @@ public:
         }
     }
     iterator remove(iterator it);
-
-protected:
-    // protected dtor as requried by RefCounted
-    ~Table();
 
 private:
     Schema* schema_;

@@ -21,13 +21,12 @@ TEST(bench, table_insert) {
         vector<Value> row = { Value((i32) i), Value("dummy!") };
         Row* r = Row::create(schema, row);
         t->insert(r);
-        r->release();
     }
     timer.stop();
     Log::info("inserting %d rows times takes %.2lf seconds, op/s=%.0lf",
         n, timer.elapsed(), n / timer.elapsed());
 
-    t->release();
+    delete t;
 }
 
 TEST(bench, stringhash32) {

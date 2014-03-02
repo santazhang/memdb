@@ -15,7 +15,7 @@ TEST(row, create) {
     Row* r1 = Row::create(schema, row1);
     EXPECT_EQ(r1->get_column("id").get_i32(), 1);
     EXPECT_EQ(r1->get_column("name").get_str(), "alice");
-    r1->release();
+    delete r1;
 
     map<string, Value> row2;
     row2["id"] = Value(2);
@@ -23,7 +23,7 @@ TEST(row, create) {
     Row* r2 = Row::create(schema, row2);
     EXPECT_EQ(r2->get_column("id").get_i32(), 2);
     EXPECT_EQ(r2->get_column("name").get_str(), "bob");
-    r2->release();
+    delete r2;
 
     unordered_map<string, Value> row3;
     row3["id"] = Value(3);
@@ -31,5 +31,5 @@ TEST(row, create) {
     Row* r3 = Row::create(schema, row3);
     EXPECT_EQ(r3->get_column("id").get_i32(), 3);
     EXPECT_EQ(r3->get_column("name").get_str(), "cathy");
-    r3->release();
+    delete r3;
 }
