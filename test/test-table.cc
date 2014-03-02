@@ -55,5 +55,4 @@ TEST(table, create) {
     EXPECT_EQ(rows_left, 2);
 
     t->release();
-    schema->release();
 }

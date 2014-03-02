@@ -19,7 +19,7 @@ def build(bld):
     def _prog(source, target, includes=".", use="memdb BASE PTHREAD"):
         bld.program(source=source, target=target, includes=includes, use=use)
 
-    _prog(bld.path.ant_glob("test/test*.cc"), "testharness", use="memdb BASE PTHREAD")
+    _prog(bld.path.ant_glob("test/test*.cc"), "unittest", use="memdb BASE PTHREAD")
 
 #
 # waf helper code

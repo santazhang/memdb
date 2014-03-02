@@ -32,6 +32,11 @@ public:
         blobs_ = new blob[count_];
     }
 
+    MultiBlob(const blob& b): count_(1) {
+        blobs_ = new blob[count_];
+        blobs_[0] = b;
+    }
+
     MultiBlob(const MultiBlob& mb): count_(mb.count_) {
         blobs_ = new blob[count_];
         for (int i = 0; i < count_; i++) {
@@ -59,7 +64,7 @@ public:
         return *this;
     }
 
-    const blob& operator[] (int idx) const {
+    blob& operator[] (int idx) const {
         return blobs_[idx];
     }
 

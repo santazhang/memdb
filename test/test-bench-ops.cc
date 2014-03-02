@@ -28,7 +28,6 @@ TEST(bench, table_insert) {
         n, timer.elapsed(), n / timer.elapsed());
 
     t->release();
-    schema->release();
 }
 
 TEST(bench, stringhash32) {

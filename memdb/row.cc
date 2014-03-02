@@ -10,7 +10,6 @@ Row::~Row() {
         delete[] var_part_;
         delete[] var_idx_;
     }
-    schema_->release();
 }
 
 Value Row::get_column(int column_id) const {
@@ -47,6 +46,15 @@ Value Row::get_column(int column_id) const {
         break;
     }
     return v;
+}
+
+MultiBlob Row::get_key() const {
+    const std::vector<int>& key_cols = schema_->key_columns_id();
+    MultiBlob mb(key_cols.size());
+    for (int i = 0; i < mb.count(); i++) {
+        mb[i] = this->get_blob(key_cols[i]);
+    }
+    return mb;
 }
 
 blob Row::get_blob(int column_id) const {
@@ -116,7 +124,7 @@ Row* Row::create(Schema* schema, const std::vector<Value>& values) {
 
 Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
     Row* row = new Row;
-    row->schema_ = (Schema *) schema->ref_copy();
+    row->schema_ = schema;
     row->fixed_part_ = new char[schema->fixed_part_size_];
     if (schema->var_size_cols_ > 0) {
         row->var_idx_ = new int[schema->var_size_cols_];

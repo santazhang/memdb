@@ -18,8 +18,7 @@ int Schema::add_column(const char* name, Value::kind type, bool key /* =? */) {
     col_info.type = type;
 
     if (col_info.key) {
-        verify(key_col_id_ == -1);
-        key_col_id_ = col_info.id;
+        key_cols_id_.push_back(col_info.id);
     }
 
     if (col_info.type == Value::STR) {

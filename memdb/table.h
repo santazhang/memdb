@@ -14,11 +14,14 @@ namespace mdb {
 
 class Table: public RefCounted {
 public:
-    typedef std::unordered_multimap<blob, Row*, blob::hash>::const_iterator iterator;
+    typedef std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash>::const_iterator iterator;
 
-    Table(Schema* schema);
+    Table(Schema* schema): schema_(schema) {}
 
-    void insert(Row* row);
+    void insert(Row* row) {
+        MultiBlob key = row->get_key();
+        insert_into_map(rows_, key, (Row *) row->ref_copy());
+    }
 
     iterator begin() {
         return std::begin(rows_);
@@ -27,18 +30,18 @@ public:
         return std::end(rows_);
     }
 
-    std::pair<iterator, iterator> query(const Value& key) {
-        return query(key.get_blob());
+    std::pair<iterator, iterator> query(const Value& kv) {
+        return query(kv.get_blob());
     }
-    std::pair<iterator, iterator> query(const blob& key) {
+    std::pair<iterator, iterator> query(const MultiBlob& key) {
         return rows_.equal_range(key);
     }
 
-    void remove(const Value& key) {
-        remove(key.get_blob());
+    void remove(const Value& kv) {
+        remove(kv.get_blob());
     }
-    void remove(const blob& key_blob) {
-        std::pair<iterator, iterator> query_range = query(key_blob);
+    void remove(const MultiBlob& key) {
+        std::pair<iterator, iterator> query_range = query(key);
         auto it = query_range.first;
         while (it != query_range.second) {
             it = remove(it);
@@ -54,7 +57,7 @@ private:
     Schema* schema_;
 
     // indexed by key values
-    std::unordered_multimap<blob, Row*, blob::hash> rows_;
+    std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash> rows_;
 };
 
 } // namespace mdb
