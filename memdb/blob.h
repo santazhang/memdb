@@ -28,8 +28,10 @@ class MultiBlob {
     int count_;
 
 public:
-    MultiBlob(int n = 0): count_(n) {
-        blobs_ = new blob[count_];
+    MultiBlob(int n = 0): blobs_(nullptr), count_(n) {
+        if (count_ > 0) {
+            blobs_ = new blob[count_];
+        }
     }
 
     MultiBlob(const blob& b): count_(1) {
@@ -37,15 +39,19 @@ public:
         blobs_[0] = b;
     }
 
-    MultiBlob(const MultiBlob& mb): count_(mb.count_) {
-        blobs_ = new blob[count_];
+    MultiBlob(const MultiBlob& mb): blobs_(nullptr), count_(mb.count_) {
+        if (count_ > 0) {
+            blobs_ = new blob[count_];
+        }
         for (int i = 0; i < count_; i++) {
             blobs_[i] = mb.blobs_[i];
         }
     }
 
     ~MultiBlob() {
-        delete[] blobs_;
+        if (blobs_ != nullptr) {
+            delete[] blobs_;
+        }
     }
 
     int count() const {
@@ -54,9 +60,13 @@ public:
 
     const MultiBlob& operator= (const MultiBlob& o) {
         if (this != &o) {
-            delete[] blobs_;
+            if (blobs_ != nullptr) {
+                delete[] blobs_;
+            }
             count_ = o.count_;
-            blobs_ = new blob[count_];
+            if (count_ > 0) {
+                blobs_ = new blob[count_];
+            }
             for (int i = 0; i < count_; i++) {
                 blobs_[i] = o.blobs_[i];
             }
