@@ -19,6 +19,7 @@ public:
 
     class Cursor {
         iterator begin_, end_, next_;
+        int count_ = -1;
     public:
         Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin) {}
 
@@ -32,6 +33,15 @@ public:
             Row* row = next_->second;
             ++next_;
             return row;
+        }
+        int count() {
+            if (count_ < 0) {
+                count_ = 0;
+                for (auto it = begin_; it != end_; ++it) {
+                    count_++;
+                }
+            }
+            return count_;
         }
     };
 
