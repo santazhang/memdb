@@ -164,7 +164,7 @@ void Row::update(int column_id, const std::string& v) {
     } else {
         verify(kind_ == DENSE);
         blob b = this->get_blob(column_id);
-        if (b.len == v.size() && memcmp(b.data, &v[0], v.size()) == 0) {
+        if (size_t(b.len) == v.size() && memcmp(b.data, &v[0], v.size()) == 0) {
             return;
         }
     }
