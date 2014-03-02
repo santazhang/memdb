@@ -60,23 +60,23 @@ public:
         return *this;
     }
     const Value& operator= (i32 v) {
-        *this = Value(v);
+        this->set_i32(v);
         return *this;
     }
     const Value& operator= (i64 v) {
-        *this = Value(v);
+        this->set_i64(v);
         return *this;
     }
     const Value& operator= (double v) {
-        *this = Value(v);
+        this->set_double(v);
         return *this;
     }
     const Value& operator= (const std::string& s) {
-        *this = Value(s);
+        this->set_str(s);
         return *this;
     }
     const Value& operator= (const char* str) {
-        *this = Value(str);
+        this->set_str(str);
         return *this;
     }
 
