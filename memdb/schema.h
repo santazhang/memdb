@@ -72,6 +72,9 @@ public:
     iterator end() {
         return std::end(col_info_);
     }
+    size_t columns_count() const {
+        return col_info_.size();
+    }
 
 private:
 

@@ -98,22 +98,29 @@ blob Row::get_blob(int column_id) const {
 }
 
 Row* Row::create(Schema* schema, const std::map<std::string, Value>& values) {
+    verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
-        values_ptr[schema->get_column_id(it.first)] = &it.second;
+        int col_id = schema->get_column_id(it.first);
+        verify(col_id >= 0);
+        values_ptr[col_id] = &it.second;
     }
     return Row::create(schema, values_ptr);
 }
 
 Row* Row::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
+    verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
-        values_ptr[schema->get_column_id(it.first)] = &it.second;
+        int col_id = schema->get_column_id(it.first);
+        verify(col_id >= 0);
+        values_ptr[col_id] = &it.second;
     }
     return Row::create(schema, values_ptr);
 }
 
 Row* Row::create(Schema* schema, const std::vector<Value>& values) {
+    verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr;
     values_ptr.reserve(values.size());
     for (auto& it: values) {
@@ -156,6 +163,7 @@ Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
             break;
         }
     }
+    verify(fixed_pos == schema->fixed_part_size_);
 
     if (schema->var_size_cols_ > 0) {
         // 2nd pass, write var part
@@ -171,6 +179,7 @@ Row* Row::create(Schema* schema, const std::vector<const Value*>& values) {
             }
         }
         verify(var_part_size == var_pos);
+        verify(var_counter == schema->var_size_cols_);
     }
     return row;
 }

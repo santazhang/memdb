@@ -19,9 +19,9 @@ public:
 
     class Cursor {
         iterator begin_, end_, next_;
-        int count_ = -1;
+        int count_;
     public:
-        Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin) {}
+        Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin), count_(-1) {}
 
         bool has_next() const {
             return next_ != end_;

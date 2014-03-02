@@ -15,7 +15,7 @@ TEST(table, create) {
 
     UnsortedTable* ut = new UnsortedTable(schema);
 
-    vector<Value> row1 = { (i32) 1, "alice" };
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
     Row* r1 = Row::create(schema, row1);
     ut->insert(r1);
 
@@ -60,7 +60,7 @@ TEST(table, compound_key) {
 
     UnsortedTable* ut = new UnsortedTable(schema);
 
-    vector<Value> row1 = { (i32) 1, "alice" };
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
     Row* r1 = Row::create(schema, row1);
     ut->insert(r1);
 
