@@ -10,6 +10,13 @@ UnsortedTable::~UnsortedTable() {
     delete schema_;
 }
 
+void UnsortedTable::clear() {
+    for (auto& it: rows_) {
+        delete it.second;
+    }
+    rows_.clear();
+}
+
 void UnsortedTable::remove(const MultiBlob& key) {
     auto query_range = rows_.equal_range(key);
     iterator it = query_range.first;

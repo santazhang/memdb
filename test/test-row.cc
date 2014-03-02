@@ -32,4 +32,6 @@ TEST(row, create) {
     EXPECT_EQ(r3->get_column("id").get_i32(), 3);
     EXPECT_EQ(r3->get_column("name").get_str(), "cathy");
     delete r3;
+
+    delete schema;
 }

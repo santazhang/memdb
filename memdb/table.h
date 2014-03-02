@@ -55,9 +55,7 @@ public:
         return Cursor(std::begin(rows_), std::end(rows_));
     }
 
-    void clear() {
-        rows_.clear();
-    }
+    void clear();
 
     void remove(const Value& kv) {
         remove(kv.get_blob());

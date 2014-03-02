@@ -45,6 +45,7 @@ TEST(schema, create) {
     EXPECT_EQ(schema->get_column_info("str_3")->type, Value::STR);
     EXPECT_EQ(schema->get_column_info(schema->get_column_id("str_3"))->type, Value::STR);
     EXPECT_EQ(schema->get_column_id("str_3"), 5);
+    delete schema;
 }
 
 TEST(schema, duplicated_column) {
@@ -52,6 +53,7 @@ TEST(schema, duplicated_column) {
     EXPECT_EQ(schema->add_column("id", Value::I32), 0);
     EXPECT_EQ(schema->add_column("id", Value::I32), -1);
     EXPECT_EQ(schema->add_column("name", Value::STR), 1);
+    delete schema;
 }
 
 TEST(schema, multiple_key_column) {
@@ -59,4 +61,5 @@ TEST(schema, multiple_key_column) {
     schema->add_key_column("id1", Value::I32);
     schema->add_key_column("id2", Value::I32);
     EXPECT_EQ(schema->add_column("name", Value::STR), 2);
+    delete schema;
 }
