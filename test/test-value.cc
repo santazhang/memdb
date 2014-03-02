@@ -28,7 +28,7 @@ TEST(value, types) {
 TEST(value, insert_into_map) {
     map<string, Value> row;
     insert_into_map(row, string("id"), Value(2));
-    row["name"] = Value("alice");
+    row["name"] = "alice";
     // check for overwriting, use valgrind to detect memory leak
     row["name"] = Value("bob");
 }

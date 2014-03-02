@@ -25,7 +25,8 @@ public:
     explicit Value(i32 v): k_(I32), i32_(v) {}
     explicit Value(i64 v): k_(I64), i64_(v) {}
     explicit Value(double v): k_(DOUBLE), double_(v) {}
-    explicit Value(const std::string& v): k_(STR), p_str_(new std::string(v)) {}
+    Value(const std::string& s): k_(STR), p_str_(new std::string(s)) {}
+    Value(const char* str): k_(STR), p_str_(new std::string(str)) {}
 
     Value(const Value& o) {
         k_ = o.k_;
