@@ -28,14 +28,14 @@ TEST(table, create) {
     EXPECT_EQ(query_result.front(), r1);
 
     map<string, Value> row2;
-    row2["id"] = (i32) 2;
-    row2["name"] = "bob";
+    row2["id"] = Value((i32) 2);
+    row2["name"] = Value("bob");
     Row* r2 = Row::create(schema, row2);
     ut->insert(r2);
 
     unordered_map<string, Value> row3;
-    row3["id"] = (i32) 3;
-    row3["name"] = "cathy";
+    row3["id"] = Value((i32) 3);
+    row3["name"] = Value("cathy");
     Row* r3 = Row::create(schema, row3);
     ut->insert(r3);
 
