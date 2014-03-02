@@ -283,6 +283,8 @@ TEST(table, sorted_table_queries) {
     Log::debug("remove 1 < key < 3:");
     st->remove(st->query_in(Value((i32) 1), Value((i32) 3)));
     print_table(st);
+
+    delete st;
 }
 
 TEST(table, sorted_multi_key_cmp) {
@@ -303,6 +305,7 @@ TEST(table, sorted_multi_key_cmp) {
         EXPECT_FALSE(smk1 != smk2);
         EXPECT_FALSE(smk1 < smk2);
         EXPECT_FALSE(smk1 > smk2);
+        delete schema;
     }
 
     {
@@ -322,6 +325,7 @@ TEST(table, sorted_multi_key_cmp) {
         EXPECT_TRUE(smk1 != smk2);
         EXPECT_TRUE(smk1 < smk2);
         EXPECT_FALSE(smk1 > smk2);
+        delete schema;
     }
 
     {
@@ -347,6 +351,7 @@ TEST(table, sorted_multi_key_cmp) {
         EXPECT_FALSE(smk1 == smk2);
         EXPECT_FALSE(smk1 > smk2);
         EXPECT_FALSE(smk1 >= smk2);
+        delete schema;
     }
 
     {
@@ -372,6 +377,7 @@ TEST(table, sorted_multi_key_cmp) {
         EXPECT_FALSE(smk1 == smk2);
         EXPECT_FALSE(smk1 < smk2);
         EXPECT_FALSE(smk1 <= smk2);
+        delete schema;
     }
 
     {
@@ -398,6 +404,7 @@ TEST(table, sorted_multi_key_cmp) {
         EXPECT_FALSE(smk1 == smk2);
         EXPECT_FALSE(smk1 < smk2);
         EXPECT_FALSE(smk1 <= smk2);
+        delete schema;
     }
 
     {
@@ -424,6 +431,7 @@ TEST(table, sorted_multi_key_cmp) {
         EXPECT_FALSE(smk1 == smk2);
         EXPECT_FALSE(smk1 > smk2);
         EXPECT_FALSE(smk1 >= smk2);
+        delete schema;
     }
 }
 
