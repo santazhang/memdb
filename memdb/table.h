@@ -24,7 +24,7 @@ class SortedMultiKey {
     const Schema* schema_;
 public:
     SortedMultiKey(const MultiBlob& mb, const Schema* schema): mb_(mb), schema_(schema) {
-        verify(mb_.count() == schema->key_columns_id().size());
+        verify(mb_.count() == (int) schema->key_columns_id().size());
     }
 
     // -1: this < o, 0: this == o, 1: this > o

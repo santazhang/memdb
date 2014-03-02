@@ -6,7 +6,7 @@ namespace mdb {
 int SortedMultiKey::compare(const SortedMultiKey& o) const {
     verify(schema_ == o.schema_);
     const std::vector<int>& key_cols = schema_->key_columns_id();
-    for (int i = 0; i < key_cols.size(); i++) {
+    for (size_t i = 0; i < key_cols.size(); i++) {
         const Schema::column_info* info = schema_->get_column_info(key_cols[i]);
         verify(info->key);
         switch (info->type) {
