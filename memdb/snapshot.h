@@ -20,25 +20,139 @@ protected:
 
 template <class Value>
 struct versioned_value {
-    version_t created_at, deleted_at;
+    version_t created_at, removed_at;
 
     // const value, not modifiable
     const Value val;
 
-    versioned_value(version_t created, const Value& v): created_at(created), deleted_at(-1), val(v) {}
+    versioned_value(version_t created, const Value& v): created_at(created), removed_at(-1), val(v) {}
     bool valid_at(version_t v) const {
-        return created_at <= v && (deleted_at == -1 || v < deleted_at);
+        return created_at <= v && (removed_at == -1 || v < removed_at);
+    }
+    // all future query will have version > v
+    bool invalid_after(version_t v) const {
+        return removed_at >= 0 && removed_at <= v + 1;
+    }
+    void remove(version_t v) {
+        verify(removed_at == -1);
+        removed_at = v;
+        verify(created_at < removed_at);
     }
 };
 
 template <class Key, class Value>
 class snapshot_sortedmap {
 
+public:
+
+    class kv_range: public Enumerator<std::pair<const Key*, const Value*>> {
+        snapshot_sortedmap ss_;
+        typename std::multimap<Key, versioned_value<Value>>::const_iterator begin_;
+        typename std::multimap<Key, versioned_value<Value>>::const_iterator end_;
+        typename std::multimap<Key, versioned_value<Value>>::const_iterator next_;
+
+        bool cached_;
+        std::pair<const Key*, const Value*> cached_next_;
+
+        int count_;
+
+        bool prefetch_next() {
+            verify(cached_ == false);
+            while (cached_ == false && next_ != end_) {
+                if (next_->second.valid_at(ss_.version())) {
+                    cached_next_.first = &(next_->first);
+                    cached_next_.second = &(next_->second.val);
+                    cached_ = true;
+                }
+                ++next_;
+            }
+            return cached_;
+        }
+
+    public:
+        kv_range(const snapshot_sortedmap& ss,
+                 const typename std::multimap<Key, versioned_value<Value>>::const_iterator& it_begin,
+                 const typename std::multimap<Key, versioned_value<Value>>::const_iterator& it_end)
+                     : ss_(ss), begin_(it_begin), end_(it_end), next_(it_begin), cached_(false), count_(-1) {}
+
+        bool has_next() {
+            if (cached_) {
+                return true;
+            } else {
+                return prefetch_next();
+            }
+        }
+
+        std::pair<const Key*, const Value*> next() {
+            if (!cached_) {
+                verify(prefetch_next());
+            }
+            cached_ = false;
+            return cached_next_;
+        }
+
+        int count() {
+            if (count_ >= 0) {
+                return count_;
+            }
+            count_ = 0;
+            for (auto it = begin_; it != end_; ++it) {
+                if (it->second.valid_at(ss_.version())) {
+                    count_++;
+                }
+            }
+            return count_;
+        }
+    };
+
+private:
+
     // empty class, used to mark a ctor as snapshotting
     class SnapshotMarker {};
 
     class Writer {
-        // TODO
+        snapshot_sortedmap* ss_;
+    public:
+        Writer(snapshot_sortedmap* ss): ss_(ss) {}
+        void insert(const Key& key, const Value& value) {
+            // advance to next version
+            ss_->ver_++;
+            versioned_value<Value> vv(ss_->ver_, value);
+            insert_into_map(ss_->data_->data, key, vv);
+        }
+
+        template <class Iterator>
+        void insert(Iterator begin, Iterator end) {
+            ss_->ver_++;
+            while (begin != end) {
+                versioned_value<Value> vv(ss_->ver_, begin->second);
+                insert_into_map(ss_->data_->data, begin->first, vv);
+                ++begin;
+            }
+        }
+
+        void insert(kv_range range) {
+            ss_->ver_++;
+            while (range) {
+                std::pair<const Key*, const Value*> kv_pair = range.next();
+                versioned_value<Value> vv(ss_->ver_, *(kv_pair.second));
+                insert_into_map(ss_->data_->data, *(kv_pair.first), vv);
+            }
+        }
+
+        void remove_key(const Key& key) {
+            ss_->ver_++;
+            if (ss_->has_snapshot()) {
+                for (auto it = ss_->data_->data.lower_bound(key); it != ss_->data_->data.upper_bound(key); ++it) {
+                    it->second.remove(ss_->ver_);
+                }
+            } else {
+                auto it = ss_->data_->data.lower_bound(key);
+                while (it != ss_->data_->data.upper_bound(key)) {
+                    it = ss_->data_->data.erase(it);
+                }
+            }
+        }
     };
 
 
@@ -78,6 +192,8 @@ class snapshot_sortedmap {
     }
 
     void destory_me() {
+        collect_my_garbage();
+
         // unlink me from the doubly linked list
         if (this->prev_ != nullptr) {
             verify(this->next_ != nullptr);
@@ -112,8 +228,8 @@ public:
 
     // creating a new snapshot_sortedmap
     snapshot_sortedmap(): ver_(0), prev_(nullptr), next_(nullptr) {
-        writer_ = new Writer;
         data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+        writer_ = new Writer(this);
     }
 
     snapshot_sortedmap(const snapshot_sortedmap& src)
@@ -122,8 +238,17 @@ public:
             // src is a snapshot, make me a snapshot, too
             make_me_snapshot_of(src);
         } else {
-            // TODO copy data (only current version)
+            data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+            writer_ = new Writer(this);
+            writer_->insert(src.all());
         }
+    }
+
+    template <class Iterator>
+    snapshot_sortedmap(Iterator it_begin, Iterator it_end): ver_(0), prev_(nullptr), next_(nullptr) {
+        data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+        writer_ = new Writer(this);
+        writer_->insert(it_begin, it_end);
     }
 
     ~snapshot_sortedmap() {
@@ -148,10 +273,26 @@ public:
             if (src.readonly()) {
                 make_me_snapshot_of(src);
             } else {
-                // TODO copy data
+                verify(prev_ == nullptr);
+                verify(next_ == nullptr);
+                verify(ver_ == -1);
+                verify(data_ == nullptr);
+                verify(writer_ == nullptr);
+                ver_ = 0;
+                data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+                writer_ = new Writer(this);
+                writer_->insert(src.all());
             }
         }
         return *this;
+    }
+
+    bool has_snapshot() const {
+        if (prev_ == nullptr) {
+            verify(next_ == nullptr);
+            return false;
+        }
+        return true;
     }
 
     snapshot_sortedmap snapshot() const {
@@ -204,12 +345,67 @@ public:
         return SnapshotEnumerator(this);
     }
 
-    // void insert(const Key& key, const Value& value) {
-    //     verify(writer_ != nullptr);
-    //     ver_++;
-    //     versioned_value<Value> vv(ver_, value);
-    //     insert_to_map(*data_, key, vv);
-    // }
+    void insert(const Key& key, const Value& value) {
+        verify(!readonly());
+        writer_->insert(key, value);
+    }
+
+    template <class Iterator>
+    void insert(Iterator begin, Iterator end) {
+        writer_->insert(begin, end);
+    }
+
+    void remove_key(const Key& key) {
+        verify(!readonly());
+        writer_->remove_key(key);
+    }
+
+    kv_range all() const {
+        return kv_range(this->snapshot(), this->data_->data.begin(), this->data_->data.end());
+    }
+
+    kv_range query(const Key& key) const {
+        return kv_range(this->snapshot(), this->data_->data.lower_bound(key), this->data_->data.upper_bound(key));
+    }
+
+    kv_range query_lt(const Key& key) const {
+        return kv_range(this->snapshot(), this->data_->data.begin(), this->data_->data.lower_bound(key));
+    }
+
+    kv_range query_gt(const Key& key) const {
+        return kv_range(this->snapshot(), this->data_->data.upper_bound(key), this->data_->data.end());
+    }
+
+    size_t total_data_count() const {
+        return this->data_->data.size();
+    }
+
+private:
+
+    void collect_my_garbage() {
+        if (this->ver_ < 0) {
+            return;
+        }
+
+        // ENHANCE faster garbage collection (on data only visible to this snapshot)
+        auto snapshots = all_snapshots();
+        while (snapshots) {
+            const snapshot_sortedmap* ss = snapshots.next();
+            if (ss != this && ss->ver_ <= this->ver_) {
+                return;
+            }
+        }
+
+        auto it = data_->data.begin();
+        while (it != data_->data.end()) {
+            // all future query will have version > this->ver_
+            if (it->second.invalid_after(this->ver_)) {
+                it = data_->data.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
 
 };
 
