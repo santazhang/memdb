@@ -11,6 +11,8 @@ namespace mdb {
 using base::i32;
 using base::i64;
 using base::NoCopy;
+using base::RefCounted;
+using base::Enumerator;
 using base::Log;
 
 template<class K, class V>
