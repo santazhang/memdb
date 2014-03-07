@@ -88,6 +88,18 @@ public:
 
 };
 
+template <class Key, class Value, class Container>
+struct snapshotset_sortedmap: public RefCounted {
+    Container data;
+
+    // protected dtor as required by RefCounted
+protected:
+    ~snapshotset_sortedmap() {}
+};
+
+// empty class, used to mark a ctor as snapshotting
+struct snapshot_marker {};
+
 } // namespace mdb; namespace snapshot
 
 
@@ -95,14 +107,7 @@ using snapshot::version_t;
 using snapshot::versioned_value;
 
 template <class Key, class Value>
-struct ref_sortedmap: public RefCounted {
-    std::multimap<Key, Value> data;
-
-    // protected dtor as required by RefCounted
-protected:
-    ~ref_sortedmap() {}
-};
-
+using ref_sortedmap = snapshot::snapshotset_sortedmap<Key, Value, std::multimap<Key, Value>>;
 
 template <class Key, class Value>
 class snapshot_sortedmap {
@@ -116,9 +121,6 @@ public:
         snapshot_sortedmap> kv_range;
 
 private:
-
-    // empty class, used to mark a ctor as snapshotting
-    class SnapshotMarker {};
 
     class Writer {
         snapshot_sortedmap* ss_;
@@ -229,7 +231,7 @@ private:
     }
 
     // creating a snapshot
-    snapshot_sortedmap(const snapshot_sortedmap& src, const SnapshotMarker&)
+    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot::snapshot_marker&)
             : data_(nullptr), ver_(-1), prev_(nullptr), next_(nullptr), writer_(nullptr) {
         make_me_snapshot_of(src);
     }
@@ -306,8 +308,7 @@ public:
     }
 
     snapshot_sortedmap snapshot() const {
-        SnapshotMarker marker;
-        return snapshot_sortedmap(*this, marker);
+        return snapshot_sortedmap(*this, snapshot::snapshot_marker());
     }
 
     class SnapshotEnumerator: public Enumerator<const snapshot_sortedmap*> {
