@@ -2,6 +2,7 @@
 
 #include <inttypes.h>
 #include <map>
+#include <set>
 
 #include "utils.h"
 
@@ -88,9 +89,11 @@ public:
 
 };
 
-template <class Key, class Value, class Container>
+template <class Key, class Value, class Container, class Snapshot>
 struct snapshotset_sortedmap: public RefCounted {
     Container data;
+    Snapshot* writer;
+    std::set<Snapshot*> reader;
 
     // protected dtor as required by RefCounted
 protected:
@@ -107,9 +110,6 @@ using snapshot::version_t;
 using snapshot::versioned_value;
 
 template <class Key, class Value>
-using ref_sortedmap = snapshot::snapshotset_sortedmap<Key, Value, std::multimap<Key, Value>>;
-
-template <class Key, class Value>
 class snapshot_sortedmap {
 
 public:
@@ -119,6 +119,12 @@ public:
         Value,
         typename std::multimap<Key, versioned_value<Value>>::const_iterator,
         snapshot_sortedmap> kv_range;
+
+    typedef snapshot::snapshotset_sortedmap<
+        Key,
+        Value,
+        typename std::multimap<Key, versioned_value<Value>>,
+        snapshot_sortedmap> snapshotset;
 
 private:
 
@@ -130,7 +136,7 @@ private:
             // advance to next version
             ss_->ver_++;
             versioned_value<Value> vv(ss_->ver_, value);
-            insert_into_map(ss_->data_->data, key, vv);
+            insert_into_map(ss_->sss_->data, key, vv);
         }
 
         template <class Iterator>
@@ -138,7 +144,7 @@ private:
             ss_->ver_++;
             while (begin != end) {
                 versioned_value<Value> vv(ss_->ver_, begin->second);
-                insert_into_map(ss_->data_->data, begin->first, vv);
+                insert_into_map(ss_->sss_->data, begin->first, vv);
                 ++begin;
             }
         }
@@ -148,27 +154,26 @@ private:
             while (range) {
                 std::pair<const Key*, const Value*> kv_pair = range.next();
                 versioned_value<Value> vv(ss_->ver_, *(kv_pair.second));
-                insert_into_map(ss_->data_->data, *(kv_pair.first), vv);
+                insert_into_map(ss_->sss_->data, *(kv_pair.first), vv);
             }
         }
 
         void remove_key(const Key& key) {
             ss_->ver_++;
             if (ss_->has_snapshot()) {
-                for (auto it = ss_->data_->data.lower_bound(key); it != ss_->data_->data.upper_bound(key); ++it) {
+                for (auto it = ss_->sss_->data.lower_bound(key); it != ss_->sss_->data.upper_bound(key); ++it) {
                     it->second.remove(ss_->ver_);
                 }
             } else {
-                auto it = ss_->data_->data.lower_bound(key);
-                while (it != ss_->data_->data.upper_bound(key)) {
-                    it = ss_->data_->data.erase(it);
+                auto it = ss_->sss_->data.lower_bound(key);
+                while (it != ss_->sss_->data.upper_bound(key)) {
+                    it = ss_->sss_->data.erase(it);
                 }
             }
         }
     };
 
-
-    ref_sortedmap<Key, versioned_value<Value>>* data_;
+    snapshotset* sss_;
 
     version_t ver_;
 
@@ -183,8 +188,8 @@ private:
         ver_ = src.ver_;
         verify(writer_ == nullptr);
         writer_ = nullptr;
-        verify(data_ == nullptr);
-        data_ = (ref_sortedmap<Key, versioned_value<Value>> *) src.data_->ref_copy();
+        verify(sss_ == nullptr);
+        sss_ = (snapshotset *) src.sss_->ref_copy();
 
         // set the doubly linked list
         if (src.prev_ == nullptr) {
@@ -225,14 +230,14 @@ private:
             delete writer_;
             writer_ = nullptr;
         }
-        data_->release();
-        data_ = nullptr;
+        sss_->release();
+        sss_ = nullptr;
         ver_ = -1;
     }
 
     // creating a snapshot
     snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot::snapshot_marker&)
-            : data_(nullptr), ver_(-1), prev_(nullptr), next_(nullptr), writer_(nullptr) {
+            : sss_(nullptr), ver_(-1), prev_(nullptr), next_(nullptr), writer_(nullptr) {
         make_me_snapshot_of(src);
     }
 
@@ -240,17 +245,17 @@ public:
 
     // creating a new snapshot_sortedmap
     snapshot_sortedmap(): ver_(0), prev_(nullptr), next_(nullptr) {
-        data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+        sss_ = new snapshotset;
         writer_ = new Writer(this);
     }
 
     snapshot_sortedmap(const snapshot_sortedmap& src)
-            : data_(nullptr), ver_(-1), prev_(nullptr), next_(nullptr), writer_(nullptr) {
+            : sss_(nullptr), ver_(-1), prev_(nullptr), next_(nullptr), writer_(nullptr) {
         if (src.readonly()) {
             // src is a snapshot, make me a snapshot, too
             make_me_snapshot_of(src);
         } else {
-            data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+            sss_ = new snapshotset;
             writer_ = new Writer(this);
             writer_->insert(src.all());
         }
@@ -258,7 +263,7 @@ public:
 
     template <class Iterator>
     snapshot_sortedmap(Iterator it_begin, Iterator it_end): ver_(0), prev_(nullptr), next_(nullptr) {
-        data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+        sss_ = new snapshotset;
         writer_ = new Writer(this);
         writer_->insert(it_begin, it_end);
     }
@@ -288,10 +293,10 @@ public:
                 verify(prev_ == nullptr);
                 verify(next_ == nullptr);
                 verify(ver_ == -1);
-                verify(data_ == nullptr);
+                verify(sss_ == nullptr);
                 verify(writer_ == nullptr);
                 ver_ = 0;
-                data_ = new ref_sortedmap<Key, versioned_value<Value>>;
+                sss_ = new snapshotset;
                 writer_ = new Writer(this);
                 writer_->insert(src.all());
             }
@@ -372,23 +377,23 @@ public:
     }
 
     kv_range all() const {
-        return kv_range(this->snapshot(), this->data_->data.begin(), this->data_->data.end());
+        return kv_range(this->snapshot(), this->sss_->data.begin(), this->sss_->data.end());
     }
 
     kv_range query(const Key& key) const {
-        return kv_range(this->snapshot(), this->data_->data.lower_bound(key), this->data_->data.upper_bound(key));
+        return kv_range(this->snapshot(), this->sss_->data.lower_bound(key), this->sss_->data.upper_bound(key));
     }
 
     kv_range query_lt(const Key& key) const {
-        return kv_range(this->snapshot(), this->data_->data.begin(), this->data_->data.lower_bound(key));
+        return kv_range(this->snapshot(), this->sss_->data.begin(), this->sss_->data.lower_bound(key));
     }
 
     kv_range query_gt(const Key& key) const {
-        return kv_range(this->snapshot(), this->data_->data.upper_bound(key), this->data_->data.end());
+        return kv_range(this->snapshot(), this->sss_->data.upper_bound(key), this->sss_->data.end());
     }
 
     size_t total_data_count() const {
-        return this->data_->data.size();
+        return this->sss_->data.size();
     }
 
 private:
@@ -407,11 +412,11 @@ private:
             }
         }
 
-        auto it = data_->data.begin();
-        while (it != data_->data.end()) {
+        auto it = sss_->data.begin();
+        while (it != sss_->data.end()) {
             // all future query will have version > this->ver_
             if (it->second.invalid_after(this->ver_)) {
-                it = data_->data.erase(it);
+                it = sss_->data.erase(it);
             } else {
                 ++it;
             }
