@@ -9,10 +9,12 @@ using namespace std;
 
 TEST(snapshot, snapshot_on_empty_table) {
     snapshot_sortedmap<int, string> data;
+    EXPECT_FALSE(data.has_snapshot());
     EXPECT_EQ(data.all_snapshots().size(), 0u);
     {
         snapshot_sortedmap<int, string> snapshot = data.snapshot();
         EXPECT_EQ(data.all_snapshots().size(), 1u);
+        EXPECT_TRUE(data.has_snapshot());
         EXPECT_EQ(snapshot.all_snapshots().size(), 1u);
         data.snapshot();
         data.snapshot();
@@ -257,7 +259,40 @@ TEST(snapshot, version_validation) {
     EXPECT_FALSE(v.valid_at(1986));
     EXPECT_TRUE(v.valid_at(1987));
     EXPECT_FALSE(v.valid_at(1988));
-    EXPECT_FALSE(v.invalid_after(1986));
-    EXPECT_TRUE(v.invalid_after(1987));
-    EXPECT_TRUE(v.invalid_after(1988));
+    EXPECT_FALSE(v.invalid_at_and_after(1986));
+    EXPECT_FALSE(v.invalid_at_and_after(1987));
+    EXPECT_TRUE(v.invalid_at_and_after(1988));
+}
+
+TEST(snapshot, remove_writer_gc) {
+    snapshot_sortedmap<int, string>* ss = new snapshot_sortedmap<int, string>;
+    ss->insert(1, "hi");
+    snapshot_sortedmap<int, string> snap = ss->snapshot();
+    EXPECT_FALSE(ss->readonly());
+    EXPECT_EQ(snap.all().count(), 1);
+    EXPECT_TRUE(snap.readonly());
+    for (int i = 0; i < 10; i++) {
+        ss->insert(i, to_string(i));
+    }
+    snapshot_sortedmap<int, string>* snap2 = new snapshot_sortedmap<int, string>(ss->snapshot());
+    EXPECT_TRUE(snap2->readonly());
+    EXPECT_EQ(snap.all().count(), 1);
+    EXPECT_EQ(snap2->all().count(), 11);
+    Log::debug("snap2 content:");
+    print_range(snap2->all());
+    for (int i = 0; i < 10000; i++) {
+        ss->insert(i, to_string(i));
+    }
+    EXPECT_EQ(ss->total_data_count(), (size_t) 10011);
+    EXPECT_EQ(snap.total_data_count(), (size_t) 10011);
+    EXPECT_EQ(snap2->total_data_count(), (size_t) 10011);
+    delete ss;
+    EXPECT_EQ(snap.total_data_count(), (size_t) 11);
+    EXPECT_EQ(snap2->total_data_count(), (size_t) 11);
+    Log::debug("snap2 content:");
+    print_range(snap2->all());
+    EXPECT_EQ(snap2->all().count(), 11);
+    delete snap2;
+    EXPECT_EQ(snap.total_data_count(), (size_t) 11);
+    EXPECT_EQ(snap.all().count(), 1);
 }

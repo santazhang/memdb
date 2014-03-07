@@ -21,9 +21,11 @@ struct versioned_value {
     bool valid_at(version_t v) const {
         return created_at <= v && (removed_at == -1 || v < removed_at);
     }
-    // all future query will have version > v
-    bool invalid_after(version_t v) const {
-        return removed_at >= 0 && removed_at <= v + 1;
+    bool invalid_at_and_before(version_t v) const {
+        return v < created_at;
+    }
+    bool invalid_at_and_after(version_t v) const {
+        return removed_at >= 0 && removed_at <= v;
     }
     void remove(version_t v) {
         verify(removed_at == -1);
@@ -93,6 +95,7 @@ public:
 template <class Key, class Value, class Container, class Snapshot>
 struct snapshotset: public RefCounted {
     Container data;
+    std::multimap<version_t, std::pair<Key, Key>> removed_key_ranges;
     Snapshot* writer;
     std::set<Snapshot*> snapshots;
 
@@ -272,8 +275,10 @@ public:
         ver_++;
         if (has_snapshot()) {
             for (auto it = sss_->data.lower_bound(key); it != sss_->data.upper_bound(key); ++it) {
+                verify(key == it->first);
                 it->second.remove(ver_);
             }
+            insert_into_map(sss_->removed_key_ranges, ver_, std::make_pair(key, key));
         } else {
             auto it = sss_->data.lower_bound(key);
             while (it != sss_->data.upper_bound(key)) {
@@ -309,22 +314,68 @@ private:
             return;
         }
 
-        // ENHANCE faster garbage collection (on data only visible to this snapshot)
+        // ENHANCE: when removing a snapshot S, GC keys only visible to this snapshot
+        // if S is writer, let S' be the snapshot with highest version, any key invalid_at_and_after(S') should be collected
+        // if S is reader, let S1 < S < S2, keys created_at > S1, deleted_at <= S2 should be collected
+
+        // handle the special case of writer being destroyed
+        if (!this->rdonly_ && !all_snapshots().empty()) {
+            version_t max_ver = -1;
+            for (auto it: all_snapshots()) {
+                if (max_ver < it->version()) {
+                    max_ver = it->version();
+                }
+            }
+            auto it = sss_->data.begin();
+            while (it != sss_->data.end()) {
+                // all future query will have version > next_smallest_ver
+                if (it->second.invalid_at_and_before(max_ver)) {
+                    it = sss_->data.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            return;
+        }
+
         for (auto& it : all_snapshots()) {
-            if (it != this && it->ver_ <= this->ver_) {
+            if (it != this && it->version() <= this->version()) {
                 return;
             }
         }
 
-        auto it = sss_->data.begin();
-        while (it != sss_->data.end()) {
-            // all future query will have version > this->ver_
-            if (it->second.invalid_after(this->ver_)) {
-                it = sss_->data.erase(it);
-            } else {
-                ++it;
+        version_t next_smallest_ver = -1;
+        for (auto& it : all_snapshots()) {
+            if (it == this) {
+                continue;
             }
+            next_smallest_ver = it->version();
+            break;
         }
+        if (next_smallest_ver == -1) {
+            next_smallest_ver = ver_ + 1;
+        }
+
+        // GC based on tracking removed keys
+        auto it_key_range = sss_->removed_key_ranges.begin();
+        while (it_key_range != sss_->removed_key_ranges.upper_bound(next_smallest_ver)) {
+
+            const Key& low = it_key_range->second.first;
+            const Key& high = it_key_range->second.second;
+            verify(low <= high);
+
+            auto it = sss_->data.lower_bound(low);
+            while (it != sss_->data.upper_bound(high)) {
+                // all future query will have version > next_smallest_ver
+                if (it->second.invalid_at_and_after(next_smallest_ver)) {
+                    it = sss_->data.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            it_key_range = sss_->removed_key_ranges.erase(it_key_range);
+        }
+        return;
     }
 
 };
