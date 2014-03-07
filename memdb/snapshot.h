@@ -5,18 +5,9 @@
 
 #include "utils.h"
 
-namespace mdb {
+namespace mdb { namespace snapshot {
 
 typedef int64_t version_t;
-
-template <class Key, class Value>
-struct ref_sortedmap: public RefCounted {
-    std::multimap<Key, Value> data;
-
-    // protected dtor as required by RefCounted
-protected:
-    ~ref_sortedmap() {}
-};
 
 template <class Value>
 struct versioned_value {
@@ -40,70 +31,89 @@ struct versioned_value {
     }
 };
 
+template <class Key, class Value, class Iterator, class Snapshot>
+class snapshot_range: public Enumerator<std::pair<const Key*, const Value*>> {
+    Snapshot snapshot_;
+    Iterator begin_, end_, next_;
+    bool cached_;
+    std::pair<const Key*, const Value*> cached_next_;
+    int count_;
+
+    bool prefetch_next() {
+        verify(cached_ == false);
+        while (cached_ == false && next_ != end_) {
+            if (next_->second.valid_at(snapshot_.version())) {
+                cached_next_.first = &(next_->first);
+                cached_next_.second = &(next_->second.val);
+                cached_ = true;
+            }
+            ++next_;
+        }
+        return cached_;
+    }
+
+public:
+
+    snapshot_range(const Snapshot& snapshot, Iterator it_begin, Iterator it_end)
+        : snapshot_(snapshot), begin_(it_begin), end_(it_end), next_(it_begin), cached_(false), count_(-1) {}
+
+    bool has_next() {
+        if (cached_) {
+            return true;
+        } else {
+            return prefetch_next();
+        }
+    }
+
+    std::pair<const Key*, const Value*> next() {
+        if (!cached_) {
+            verify(prefetch_next());
+        }
+        cached_ = false;
+        return cached_next_;
+    }
+
+    int count() {
+        if (count_ >= 0) {
+            return count_;
+        }
+        count_ = 0;
+        for (auto it = begin_; it != end_; ++it) {
+            if (it->second.valid_at(snapshot_.version())) {
+                count_++;
+            }
+        }
+        return count_;
+    }
+
+};
+
+} // namespace mdb; namespace snapshot
+
+
+using snapshot::version_t;
+using snapshot::versioned_value;
+
+template <class Key, class Value>
+struct ref_sortedmap: public RefCounted {
+    std::multimap<Key, Value> data;
+
+    // protected dtor as required by RefCounted
+protected:
+    ~ref_sortedmap() {}
+};
+
+
 template <class Key, class Value>
 class snapshot_sortedmap {
 
 public:
 
-    class kv_range: public Enumerator<std::pair<const Key*, const Value*>> {
-        snapshot_sortedmap ss_;
-        typename std::multimap<Key, versioned_value<Value>>::const_iterator begin_;
-        typename std::multimap<Key, versioned_value<Value>>::const_iterator end_;
-        typename std::multimap<Key, versioned_value<Value>>::const_iterator next_;
-
-        bool cached_;
-        std::pair<const Key*, const Value*> cached_next_;
-
-        int count_;
-
-        bool prefetch_next() {
-            verify(cached_ == false);
-            while (cached_ == false && next_ != end_) {
-                if (next_->second.valid_at(ss_.version())) {
-                    cached_next_.first = &(next_->first);
-                    cached_next_.second = &(next_->second.val);
-                    cached_ = true;
-                }
-                ++next_;
-            }
-            return cached_;
-        }
-
-    public:
-        kv_range(const snapshot_sortedmap& ss,
-                 const typename std::multimap<Key, versioned_value<Value>>::const_iterator& it_begin,
-                 const typename std::multimap<Key, versioned_value<Value>>::const_iterator& it_end)
-                     : ss_(ss), begin_(it_begin), end_(it_end), next_(it_begin), cached_(false), count_(-1) {}
-
-        bool has_next() {
-            if (cached_) {
-                return true;
-            } else {
-                return prefetch_next();
-            }
-        }
-
-        std::pair<const Key*, const Value*> next() {
-            if (!cached_) {
-                verify(prefetch_next());
-            }
-            cached_ = false;
-            return cached_next_;
-        }
-
-        int count() {
-            if (count_ >= 0) {
-                return count_;
-            }
-            count_ = 0;
-            for (auto it = begin_; it != end_; ++it) {
-                if (it->second.valid_at(ss_.version())) {
-                    count_++;
-                }
-            }
-            return count_;
-        }
-    };
+    typedef snapshot::snapshot_range<
+        Key,
+        Value,
+        typename std::multimap<Key, versioned_value<Value>>::const_iterator,
+        snapshot_sortedmap> kv_range;
 
 private:
 
