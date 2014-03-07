@@ -240,7 +240,7 @@ public:
         return snapshot_sortedmap(*this, snapshot::snapshot_marker());
     }
 
-    std::set<snapshot_sortedmap*> all_snapshots() const {
+    const std::set<snapshot_sortedmap*>& all_snapshots() const {
         return this->sss_->snapshots;
     }
 
