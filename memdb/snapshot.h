@@ -90,14 +90,16 @@ public:
 };
 
 template <class Key, class Value, class Container, class Snapshot>
-struct snapshotset_sortedmap: public RefCounted {
+struct snapshotset: public RefCounted {
     Container data;
     Snapshot* writer;
     std::set<Snapshot*> reader;
 
+    snapshotset(): writer(nullptr) {}
+
     // protected dtor as required by RefCounted
 protected:
-    ~snapshotset_sortedmap() {}
+    ~snapshotset() {}
 };
 
 // empty class, used to mark a ctor as snapshotting
@@ -120,7 +122,7 @@ public:
         typename std::multimap<Key, versioned_value<Value>>::const_iterator,
         snapshot_sortedmap> kv_range;
 
-    typedef snapshot::snapshotset_sortedmap<
+    typedef snapshot::snapshotset<
         Key,
         Value,
         typename std::multimap<Key, versioned_value<Value>>,
