@@ -6,7 +6,7 @@
 
 #include "utils.h"
 
-namespace mdb { namespace snapshot {
+namespace mdb {
 
 typedef int64_t version_t;
 
@@ -106,24 +106,19 @@ protected:
 // empty class, used to mark a ctor as snapshotting
 struct snapshot_marker {};
 
-} // namespace mdb; namespace snapshot
-
-
-using snapshot::version_t;
-using snapshot::versioned_value;
 
 template <class Key, class Value>
 class snapshot_sortedmap {
 
 public:
 
-    typedef snapshot::snapshot_range<
+    typedef snapshot_range<
         Key,
         Value,
         typename std::multimap<Key, versioned_value<Value>>::const_iterator,
         snapshot_sortedmap> kv_range;
 
-    typedef snapshot::snapshotset<
+    typedef snapshotset<
         Key,
         Value,
         typename std::multimap<Key, versioned_value<Value>>,
@@ -160,7 +155,7 @@ private:
     }
 
     // creating a snapshot
-    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot::snapshot_marker&)
+    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&)
             : rdonly_(true), ver_(-1), sss_(nullptr) {
         make_me_snapshot_of(src);
     }
@@ -237,7 +232,7 @@ public:
     }
 
     snapshot_sortedmap snapshot() const {
-        return snapshot_sortedmap(*this, snapshot::snapshot_marker());
+        return snapshot_sortedmap(*this, snapshot_marker());
     }
 
     const std::set<snapshot_sortedmap*>& all_snapshots() const {

@@ -154,7 +154,7 @@ TEST(snapshot, multi_version_gc) {
     snapshot_sortedmap<int, string> final_ss;
     {
         snapshot_sortedmap<int, string> ss;
-        const int n = 1000;
+        const int n = 10000;
         vector<snapshot_sortedmap<int, string>> snapshots;
         {
             snapshots.push_back(ss.snapshot());
