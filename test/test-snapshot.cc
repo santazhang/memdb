@@ -315,4 +315,11 @@ TEST(snapshot, benchmark) {
     }
     timer.stop();
     Log::debug("op/s = %d", int(1000000 / timer.elapsed()));
+    Log::debug("create 400000 snapshots of 1000000 element snapshotmap");
+    timer.start();
+    for (int i = 0; i < 400000; i++) {
+        auto snapshot = ssmap.snapshot();
+    }
+    timer.stop();
+    Log::debug("op/s = %d", int(400000 / timer.elapsed()));
 }
