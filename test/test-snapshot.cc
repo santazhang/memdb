@@ -296,3 +296,23 @@ TEST(snapshot, remove_writer_gc) {
     EXPECT_EQ(snap.total_data_count(), (size_t) 11);
     EXPECT_EQ(snap.all().count(), 1);
 }
+
+TEST(snapshot, benchmark) {
+    multimap<int, string> baseline;
+    snapshotmap<int, string> ssmap;
+    Timer timer;
+    Log::debug("insert 10000 elements into multimap");
+    timer.start();
+    for (int i = 0; i < 1000000; i++) {
+        insert_into_map(baseline, i, to_string(i));
+    }
+    timer.stop();
+    Log::debug("op/s = %d", int(1000000 / timer.elapsed()));
+    Log::debug("insert 10000 elements into snapshotmap");
+    timer.start();
+    for (int i = 0; i < 1000000; i++) {
+        insert_into_map(ssmap, i, to_string(i));
+    }
+    timer.stop();
+    Log::debug("op/s = %d", int(1000000 / timer.elapsed()));
+}

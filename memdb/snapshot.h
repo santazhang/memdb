@@ -127,6 +127,8 @@ public:
         typename std::multimap<Key, versioned_value<Value>>,
         snapshot_sortedmap> snapshotset;
 
+    typedef typename std::pair<const Key&, const Value&> value_type;
+
 private:
 
     bool rdonly_;
@@ -247,6 +249,13 @@ public:
         ver_++;
         versioned_value<Value> vv(ver_, value);
         insert_into_map(sss_->data, key, vv);
+    }
+
+    void insert(const value_type kv_pair) {
+        verify(!readonly());
+        ver_++;
+        versioned_value<Value> vv(ver_, kv_pair.second);
+        insert_into_map(sss_->data, kv_pair.first, vv);
     }
 
     template <class Iterator>
@@ -379,5 +388,8 @@ private:
     }
 
 };
+
+template <class Key, class Value>
+using snapshotmap = snapshot_sortedmap<Key, Value>;
 
 } // namespace mdb
