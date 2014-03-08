@@ -40,7 +40,6 @@ class snapshot_range: public Enumerator<std::pair<const Key*, const Value*>> {
     Iterator begin_, end_, next_;
     bool cached_;
     std::pair<const Key*, const Value*> cached_next_;
-    std::pair<const Key&, const Value&> cached_next_2;
     int count_;
 
     bool prefetch_next() {
@@ -59,8 +58,7 @@ class snapshot_range: public Enumerator<std::pair<const Key*, const Value*>> {
 public:
 
     snapshot_range(const Snapshot& snapshot, Iterator it_begin, Iterator it_end)
-        : snapshot_(snapshot), begin_(it_begin), end_(it_end), next_(it_begin),
-          cached_(false), cached_next_2(it_begin->first, it_begin->second.val), count_(-1) {}
+        : snapshot_(snapshot), begin_(it_begin), end_(it_end), next_(it_begin), cached_(false), count_(-1) {}
 
     bool has_next() {
         if (cached_) {
