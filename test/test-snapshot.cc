@@ -9,12 +9,13 @@ using namespace std;
 
 TEST(snapshot, snapshot_on_empty_table) {
     snapshot_sortedmap<int, string> data;
-    EXPECT_FALSE(data.has_snapshot());
+    EXPECT_FALSE(data.has_readonly_snapshot());
+    EXPECT_TRUE(data.has_writable_snapshot());
     EXPECT_EQ(data.all_snapshots().size(), 0u);
     {
         snapshot_sortedmap<int, string> snapshot = data.snapshot();
         EXPECT_EQ(data.all_snapshots().size(), 1u);
-        EXPECT_TRUE(data.has_snapshot());
+        EXPECT_TRUE(data.has_readonly_snapshot());
         EXPECT_EQ(snapshot.all_snapshots().size(), 1u);
         data.snapshot();
         data.snapshot();
@@ -22,12 +23,11 @@ TEST(snapshot, snapshot_on_empty_table) {
         EXPECT_EQ(snapshot.all_snapshots().size(), 1u);
         EXPECT_EQ(data.version(), 0);
         EXPECT_EQ(snapshot.version(), 0);
-        EXPECT_TRUE(data.valid());
-        EXPECT_TRUE(snapshot.valid());
         EXPECT_FALSE(data.readonly());
 
         // make data a snapshot
         data = snapshot.snapshot();
+        EXPECT_FALSE(data.has_writable_snapshot());
         EXPECT_TRUE(data.readonly());
         EXPECT_TRUE(snapshot.readonly());
         EXPECT_EQ(data.all_snapshots().size(), 2u);
@@ -35,7 +35,7 @@ TEST(snapshot, snapshot_on_empty_table) {
     EXPECT_EQ(data.all_snapshots().size(), 1u);
 }
 
-static void print_range(snapshot_sortedmap<int, string>::kv_range range) {
+static void print_range(snapshot_sortedmap<int, string>::range_type range) {
     while (range) {
         pair<const int&, const string&> kv_pair = range.next();
         Log::debug("%d => %s", kv_pair.first, kv_pair.second.c_str());
@@ -48,7 +48,7 @@ TEST(snapshot, versioned_query) {
     auto range1 = data.all();
     data.insert(2, "world");
     auto range2 = data.all();
-    data.remove_key(1);
+    data.erase(1);
     auto range3 = data.all();
     Log::debug("v1: %d elements", range1.count());
     print_range(range1);
@@ -171,7 +171,7 @@ TEST(snapshot, multi_version_gc) {
         }
         {
             for (int i = 0; i < n; i++) {
-                ss.remove_key(i);
+                ss.erase(i);
                 snapshots.push_back(ss.snapshot());
             }
         }
@@ -183,7 +183,7 @@ TEST(snapshot, multi_version_gc) {
     }
     EXPECT_TRUE(final_ss.readonly());
     EXPECT_EQ(final_ss.all().count(), 0);
-    Log::debug("total data count = %d", final_ss.total_data_count());
+    Log::debug("total data count = %d", final_ss.debug_storage_size());
 }
 
 
@@ -195,7 +195,7 @@ TEST(snapshot, gc) {
             auto snap = ss.snapshot();
             EXPECT_EQ(ss.all().count(), 1);
             print_range(ss.all());
-            ss.remove_key(1);
+            ss.erase(1);
             EXPECT_EQ(snap.all().count(), 1);
             EXPECT_EQ(ss.all().count(), 0);
         }
@@ -211,8 +211,8 @@ TEST(snapshot, gc) {
         ss = ss2;
         EXPECT_FALSE(ss.readonly());
         EXPECT_FALSE(ss2.readonly());
-        EXPECT_EQ(ss.total_data_count(), (size_t) 0);
-        EXPECT_EQ(ss2.total_data_count(), (size_t) 0);
+        EXPECT_EQ(ss.debug_storage_size(), (size_t) 0);
+        EXPECT_EQ(ss2.debug_storage_size(), (size_t) 0);
     }
 }
 
@@ -225,16 +225,16 @@ TEST(snapshot, versions_and_gc) {
     EXPECT_EQ(s1->version(), 2);
     snapshot_sortedmap<int, string>* s2 = new snapshot_sortedmap<int, string>(s1->snapshot());
     EXPECT_EQ(s2->version(), 2);
-    s1->remove_key(1);
+    s1->erase(1);
     EXPECT_EQ(s1->version(), 3);
-    s1->remove_key(2);
+    s1->erase(2);
     EXPECT_EQ(s1->version(), 4);
-    EXPECT_EQ(s1->total_data_count(), 2u);
-    Log::debug("total data count = %d", s1->total_data_count());
+    EXPECT_EQ(s1->debug_storage_size(), 2u);
+    Log::debug("total data count = %d", s1->debug_storage_size());
     delete s2;
     // now "1 => hi" is garbage collected
-    EXPECT_EQ(s1->total_data_count(), 1u);
-    Log::debug("total data count = %d", s1->total_data_count());
+    EXPECT_EQ(s1->debug_storage_size(), 1u);
+    Log::debug("total data count = %d", s1->debug_storage_size());
     delete s1;
 }
 
@@ -242,11 +242,11 @@ TEST(snapshot, fast_key_removal) {
     snapshot_sortedmap<int, string> ss;
     ss.insert(1, "hi");
     ss.insert(2, "hello");
-    EXPECT_EQ(ss.total_data_count(), (size_t) 2);
-    ss.remove_key(1);
-    EXPECT_EQ(ss.total_data_count(), (size_t) 1);
-    ss.remove_key(2);
-    EXPECT_EQ(ss.total_data_count(), (size_t) 0);
+    EXPECT_EQ(ss.debug_storage_size(), (size_t) 2);
+    ss.erase(1);
+    EXPECT_EQ(ss.debug_storage_size(), (size_t) 1);
+    ss.erase(2);
+    EXPECT_EQ(ss.debug_storage_size(), (size_t) 0);
 }
 
 
@@ -283,23 +283,23 @@ TEST(snapshot, remove_writer_gc) {
     for (int i = 0; i < 10000; i++) {
         ss->insert(i, to_string(i));
     }
-    EXPECT_EQ(ss->total_data_count(), (size_t) 10011);
-    EXPECT_EQ(snap.total_data_count(), (size_t) 10011);
-    EXPECT_EQ(snap2->total_data_count(), (size_t) 10011);
+    EXPECT_EQ(ss->debug_storage_size(), (size_t) 10011);
+    EXPECT_EQ(snap.debug_storage_size(), (size_t) 10011);
+    EXPECT_EQ(snap2->debug_storage_size(), (size_t) 10011);
     delete ss;
-    EXPECT_EQ(snap.total_data_count(), (size_t) 11);
-    EXPECT_EQ(snap2->total_data_count(), (size_t) 11);
+    EXPECT_EQ(snap.debug_storage_size(), (size_t) 11);
+    EXPECT_EQ(snap2->debug_storage_size(), (size_t) 11);
     Log::debug("snap2 content:");
     print_range(snap2->all());
     EXPECT_EQ(snap2->all().count(), 11);
     delete snap2;
-    EXPECT_EQ(snap.total_data_count(), (size_t) 11);
+    EXPECT_EQ(snap.debug_storage_size(), (size_t) 11);
     EXPECT_EQ(snap.all().count(), 1);
 }
 
 TEST(snapshot, benchmark) {
     multimap<int, string> baseline;
-    snapshotmap<int, string> ssmap;
+    snapshot_sortedmap<int, string> ssmap;
     Timer timer;
     Log::debug("insert 10000 elements into multimap");
     timer.start();
@@ -308,14 +308,14 @@ TEST(snapshot, benchmark) {
     }
     timer.stop();
     Log::debug("op/s = %d", int(1000000 / timer.elapsed()));
-    Log::debug("insert 10000 elements into snapshotmap");
+    Log::debug("insert 10000 elements into snapshot_sortedmap");
     timer.start();
     for (int i = 0; i < 1000000; i++) {
         insert_into_map(ssmap, i, to_string(i));
     }
     timer.stop();
     Log::debug("op/s = %d", int(1000000 / timer.elapsed()));
-    Log::debug("create 400000 snapshots of 1000000 element snapshotmap");
+    Log::debug("create 400000 snapshots of 1000000 element snapshot_sortedmap");
     timer.start();
     for (int i = 0; i < 400000; i++) {
         auto snapshot = ssmap.snapshot();

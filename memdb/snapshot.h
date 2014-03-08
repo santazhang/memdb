@@ -91,12 +91,18 @@ public:
 
 };
 
-// note: this includes both writer and snapshots
+// A group of snapshots. Each snapshot in the group points to it, so they can share data.
+// There could be at most one writer in the group. Members are ordered in a doubly linked list:
+// S1 <= S2 <= S3 <= ... <= Sw (increasing version, writer at tail if exists)
 template <class Key, class Value, class Container, class Snapshot>
 struct snapshot_group: public RefCounted {
     Container data;
     std::multimap<version_t, std::pair<Key, Key>> removed_key_ranges;
+
+    // the writer of the group, nullptr means nobody can write to the group
     Snapshot* writer;
+
+    // TODO remove it, let Snapshot manage doubly linked list among them
     std::set<Snapshot*> snapshots;
 
     snapshot_group(Snapshot* w): writer(w) {}
@@ -106,12 +112,11 @@ protected:
     ~snapshot_group() {}
 };
 
-// empty class, used to mark a ctor as snapshotting
-struct snapshot_marker {};
-
-
 template <class Key, class Value>
 class snapshot_sortedmap {
+
+    // empty struct, used to mark a ctor as snapshotting
+    struct snapshot_marker {};
 
 public:
 
@@ -119,7 +124,7 @@ public:
         Key,
         Value,
         typename std::multimap<Key, versioned_value<Value>>::const_iterator,
-        snapshot_sortedmap> kv_range;
+        snapshot_sortedmap> range_type;
 
     typedef snapshot_group<
         Key,
@@ -131,7 +136,9 @@ public:
 
 private:
 
+    // TODO remove it, check readonly by checking ssg_->writer != this
     bool rdonly_;
+
     version_t ver_;
     snapshot_group* ssg_;
 
@@ -160,8 +167,7 @@ private:
     }
 
     // creating a snapshot
-    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&)
-            : rdonly_(true), ver_(-1), ssg_(nullptr) {
+    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&): rdonly_(true), ver_(-1), ssg_(nullptr) {
         make_me_snapshot_of(src);
     }
 
@@ -172,8 +178,7 @@ public:
         ssg_ = new snapshot_group(this);
     }
 
-    snapshot_sortedmap(const snapshot_sortedmap& src)
-            : rdonly_(false), ver_(-1), ssg_(nullptr) {
+    snapshot_sortedmap(const snapshot_sortedmap& src): rdonly_(false), ver_(-1), ssg_(nullptr) {
         if (src.readonly()) {
             // src is a snapshot, make me a snapshot, too
             rdonly_ = true;
@@ -202,10 +207,6 @@ public:
         return ver_;
     }
 
-    bool valid() const {
-        return ver_ >= 0;
-    }
-
     bool readonly() const {
         if (rdonly_) {
             verify(ssg_->writer != this);
@@ -232,8 +233,12 @@ public:
     }
 
     // snapshot: readonly
-    bool has_snapshot() const {
+    bool has_readonly_snapshot() const {
         return !ssg_->snapshots.empty();
+    }
+
+    bool has_writable_snapshot() const {
+        return ssg_->writer != nullptr;
     }
 
     snapshot_sortedmap snapshot() const {
@@ -251,7 +256,7 @@ public:
         insert_into_map(ssg_->data, key, vv);
     }
 
-    void insert(const value_type kv_pair) {
+    void insert(const value_type& kv_pair) {
         verify(!readonly());
         ver_++;
         versioned_value<Value> vv(ver_, kv_pair.second);
@@ -269,7 +274,7 @@ public:
         }
     }
 
-    void insert(kv_range range) {
+    void insert(range_type range) {
         verify(!readonly());
         ver_++;
         while (range) {
@@ -279,10 +284,10 @@ public:
         }
     }
 
-    void remove_key(const Key& key) {
+    void erase(const Key& key) {
         verify(!readonly());
         ver_++;
-        if (has_snapshot()) {
+        if (has_readonly_snapshot()) {
             for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
                 verify(key == it->first);
                 it->second.remove(ver_);
@@ -296,34 +301,37 @@ public:
         }
     }
 
-    kv_range all() const {
-        return kv_range(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.end());
+    range_type all() const {
+        return range_type(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.end());
     }
 
-    kv_range query(const Key& key) const {
-        return kv_range(this->snapshot(), this->ssg_->data.lower_bound(key), this->ssg_->data.upper_bound(key));
+    range_type query(const Key& key) const {
+        return range_type(this->snapshot(), this->ssg_->data.lower_bound(key), this->ssg_->data.upper_bound(key));
     }
 
-    kv_range query_lt(const Key& key) const {
-        return kv_range(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.lower_bound(key));
+    range_type query_lt(const Key& key) const {
+        return range_type(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.lower_bound(key));
     }
 
-    kv_range query_gt(const Key& key) const {
-        return kv_range(this->snapshot(), this->ssg_->data.upper_bound(key), this->ssg_->data.end());
+    range_type query_gt(const Key& key) const {
+        return range_type(this->snapshot(), this->ssg_->data.upper_bound(key), this->ssg_->data.end());
     }
 
-    size_t total_data_count() const {
+    size_t debug_storage_size() const {
         return this->ssg_->data.size();
     }
 
 private:
 
-    void collect_my_garbage() {
-        if (this->ver_ < 0) {
-            return;
-        }
+    void gc_last_snapshot() {
+        // do nothing, let dtor take over
+    }
 
-        // ENHANCE: when removing a snapshot S, GC keys only visible to this snapshot
+    void collect_my_garbage() {
+        // TODO case by case GC, write gc_XYZ() functions
+        verify(ver_ >= 0);
+
+        // TODO when removing a snapshot S, GC keys only visible to this snapshot
         // if S is writer, let S' be the snapshot with highest version, any key invalid_at_and_after(S') should be collected
         // if S is reader, let S1 < S < S2, keys created_at > S1, deleted_at <= S2 should be collected
 
@@ -389,7 +397,5 @@ private:
 
 };
 
-template <class Key, class Value>
-using snapshotmap = snapshot_sortedmap<Key, Value>;
 
 } // namespace mdb
