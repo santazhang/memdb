@@ -136,16 +136,12 @@ public:
 
 private:
 
-    // TODO remove it, check readonly by checking ssg_->writer != this
-    bool rdonly_;
-
     version_t ver_;
     snapshot_group* ssg_;
 
     void make_me_snapshot_of(const snapshot_sortedmap& src) {
         verify(ver_ < 0);
         ver_ = src.ver_;
-        verify(rdonly_ == true);
         verify(ssg_ == nullptr);
         ssg_ = (snapshot_group *) src.ssg_->ref_copy();
         ssg_->snapshots.insert(this);
@@ -162,31 +158,28 @@ private:
 
         ssg_->release();
         ssg_ = nullptr;
-        rdonly_ = true;
         ver_ = -1;
     }
 
     // creating a snapshot
-    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&): rdonly_(true), ver_(-1), ssg_(nullptr) {
+    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&): ver_(-1), ssg_(nullptr) {
         make_me_snapshot_of(src);
     }
 
 public:
 
     // creating a new snapshot_sortedmap
-    snapshot_sortedmap(): rdonly_(false), ver_(0) {
+    snapshot_sortedmap(): ver_(0) {
         ssg_ = new snapshot_group(this);
     }
 
-    snapshot_sortedmap(const snapshot_sortedmap& src): rdonly_(false), ver_(-1), ssg_(nullptr) {
+    snapshot_sortedmap(const snapshot_sortedmap& src): ver_(-1), ssg_(nullptr) {
         if (src.readonly()) {
             // src is a snapshot, make me a snapshot, too
-            rdonly_ = true;
             ver_ = -1;
             ssg_ = nullptr;
             make_me_snapshot_of(src);
         } else {
-            rdonly_ = false;
             ver_ = 0;
             ssg_ = new snapshot_group(this);
             insert(src.all());
@@ -194,7 +187,7 @@ public:
     }
 
     template <class Iterator>
-    snapshot_sortedmap(Iterator it_begin, Iterator it_end): rdonly_(false), ver_(0) {
+    snapshot_sortedmap(Iterator it_begin, Iterator it_end): ver_(0) {
         ssg_ = new snapshot_group(this);
         insert(it_begin, it_end);
     }
@@ -208,10 +201,8 @@ public:
     }
 
     bool readonly() const {
-        if (rdonly_) {
-            verify(ssg_->writer != this);
-        }
-        return rdonly_;
+        verify(this != nullptr);
+        return ssg_->writer != this;
     }
 
     const snapshot_sortedmap& operator= (const snapshot_sortedmap& src) {
@@ -222,8 +213,6 @@ public:
             } else {
                 verify(ver_ == -1);
                 verify(ssg_ == nullptr);
-                verify(rdonly_ == true);
-                rdonly_ = false;
                 ver_ = 0;
                 ssg_ = new snapshot_group(this);
                 insert(src.all());
@@ -336,7 +325,7 @@ private:
         // if S is reader, let S1 < S < S2, keys created_at > S1, deleted_at <= S2 should be collected
 
         // handle the special case of writer being destroyed
-        if (!this->rdonly_ && !all_snapshots().empty()) {
+        if (!this->readonly() && !all_snapshots().empty()) {
             version_t max_ver = -1;
             for (auto it: all_snapshots()) {
                 if (max_ver < it->version()) {
