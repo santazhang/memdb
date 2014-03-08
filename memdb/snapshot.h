@@ -93,17 +93,17 @@ public:
 
 // note: this includes both writer and snapshots
 template <class Key, class Value, class Container, class Snapshot>
-struct snapshotgroup: public RefCounted {
+struct snapshot_group: public RefCounted {
     Container data;
     std::multimap<version_t, std::pair<Key, Key>> removed_key_ranges;
     Snapshot* writer;
     std::set<Snapshot*> snapshots;
 
-    snapshotgroup(Snapshot* w): writer(w) {}
+    snapshot_group(Snapshot* w): writer(w) {}
 
     // protected dtor as required by RefCounted
 protected:
-    ~snapshotgroup() {}
+    ~snapshot_group() {}
 };
 
 // empty class, used to mark a ctor as snapshotting
@@ -121,11 +121,11 @@ public:
         typename std::multimap<Key, versioned_value<Value>>::const_iterator,
         snapshot_sortedmap> kv_range;
 
-    typedef snapshotgroup<
+    typedef snapshot_group<
         Key,
         Value,
         typename std::multimap<Key, versioned_value<Value>>,
-        snapshot_sortedmap> snapshotgroup;
+        snapshot_sortedmap> snapshot_group;
 
     typedef typename std::pair<const Key&, const Value&> value_type;
 
@@ -133,14 +133,14 @@ private:
 
     bool rdonly_;
     version_t ver_;
-    snapshotgroup* ssg_;
+    snapshot_group* ssg_;
 
     void make_me_snapshot_of(const snapshot_sortedmap& src) {
         verify(ver_ < 0);
         ver_ = src.ver_;
         verify(rdonly_ == true);
         verify(ssg_ == nullptr);
-        ssg_ = (snapshotgroup *) src.ssg_->ref_copy();
+        ssg_ = (snapshot_group *) src.ssg_->ref_copy();
         ssg_->snapshots.insert(this);
     }
 
@@ -169,7 +169,7 @@ public:
 
     // creating a new snapshot_sortedmap
     snapshot_sortedmap(): rdonly_(false), ver_(0) {
-        ssg_ = new snapshotgroup(this);
+        ssg_ = new snapshot_group(this);
     }
 
     snapshot_sortedmap(const snapshot_sortedmap& src)
@@ -183,14 +183,14 @@ public:
         } else {
             rdonly_ = false;
             ver_ = 0;
-            ssg_ = new snapshotgroup(this);
+            ssg_ = new snapshot_group(this);
             insert(src.all());
         }
     }
 
     template <class Iterator>
     snapshot_sortedmap(Iterator it_begin, Iterator it_end): rdonly_(false), ver_(0) {
-        ssg_ = new snapshotgroup(this);
+        ssg_ = new snapshot_group(this);
         insert(it_begin, it_end);
     }
 
@@ -224,7 +224,7 @@ public:
                 verify(rdonly_ == true);
                 rdonly_ = false;
                 ver_ = 0;
-                ssg_ = new snapshotgroup(this);
+                ssg_ = new snapshot_group(this);
                 insert(src.all());
             }
         }
