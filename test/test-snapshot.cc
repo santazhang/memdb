@@ -7,20 +7,25 @@ using namespace base;
 using namespace mdb;
 using namespace std;
 
+TEST(snapshot, snapshot_memory_size_should_be_very_small) {
+    Log::debug("sizeof(snapshot_sortedmap<int, string>) = %d", sizeof(snapshot_sortedmap<int, string>));
+    EXPECT_LE(sizeof(snapshot_sortedmap<int, string>), 32u);
+}
+
 TEST(snapshot, snapshot_on_empty_table) {
     snapshot_sortedmap<int, string> data;
     EXPECT_FALSE(data.has_readonly_snapshot());
     EXPECT_TRUE(data.has_writable_snapshot());
-    EXPECT_EQ(data.all_snapshots().size(), 0u);
+    EXPECT_EQ(data.snapshot_count(), 1u);
     {
         snapshot_sortedmap<int, string> snapshot = data.snapshot();
-        EXPECT_EQ(data.all_snapshots().size(), 1u);
+        EXPECT_EQ(data.snapshot_count(), 2u);
         EXPECT_TRUE(data.has_readonly_snapshot());
-        EXPECT_EQ(snapshot.all_snapshots().size(), 1u);
+        EXPECT_EQ(snapshot.snapshot_count(), 2u);
         data.snapshot();
         data.snapshot();
         snapshot = snapshot.snapshot();
-        EXPECT_EQ(snapshot.all_snapshots().size(), 1u);
+        EXPECT_EQ(snapshot.snapshot_count(), 2u);
         EXPECT_EQ(data.version(), 0);
         EXPECT_EQ(snapshot.version(), 0);
         EXPECT_FALSE(data.readonly());
@@ -30,9 +35,9 @@ TEST(snapshot, snapshot_on_empty_table) {
         EXPECT_FALSE(data.has_writable_snapshot());
         EXPECT_TRUE(data.readonly());
         EXPECT_TRUE(snapshot.readonly());
-        EXPECT_EQ(data.all_snapshots().size(), 2u);
+        EXPECT_EQ(data.snapshot_count(), 2u);
     }
-    EXPECT_EQ(data.all_snapshots().size(), 1u);
+    EXPECT_EQ(data.snapshot_count(), 1u);
 }
 
 static void print_range(snapshot_sortedmap<int, string>::range_type range) {

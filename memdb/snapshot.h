@@ -28,9 +28,9 @@ struct versioned_value {
         return removed_at >= 0 && removed_at <= v;
     }
     void remove(version_t v) {
-        verify(removed_at == -1);
+        assert(removed_at == -1);
         removed_at = v;
-        verify(created_at < removed_at);
+        assert(created_at < removed_at);
     }
 };
 
@@ -43,7 +43,7 @@ class snapshot_range: public Enumerator<std::pair<const Key&, const Value&>> {
     int count_;
 
     bool prefetch_next() {
-        verify(cached_ == false);
+        assert(cached_ == false);
         while (cached_ == false && next_ != end_) {
             if (next_->second.valid_at(snapshot_.version())) {
                 cached_next_.first = &(next_->first);
@@ -70,7 +70,7 @@ public:
 
     std::pair<const Key&, const Value&> next() {
         if (!cached_) {
-            verify(prefetch_next());
+            assert(prefetch_next());
         }
         cached_ = false;
         return std::pair<const Key&, const Value&>(*cached_next_.first, *cached_next_.second);
@@ -102,9 +102,6 @@ struct snapshot_group: public RefCounted {
     // the writer of the group, nullptr means nobody can write to the group
     Snapshot* writer;
 
-    // TODO remove it, let Snapshot manage doubly linked list among them
-    std::set<Snapshot*> snapshots;
-
     snapshot_group(Snapshot* w): writer(w) {}
 
     // protected dtor as required by RefCounted
@@ -114,10 +111,6 @@ protected:
 
 template <class Key, class Value>
 class snapshot_sortedmap {
-
-    // empty struct, used to mark a ctor as snapshotting
-    struct snapshot_marker {};
-
 public:
 
     typedef snapshot_range<
@@ -134,60 +127,42 @@ public:
 
     typedef typename std::pair<const Key&, const Value&> value_type;
 
-private:
-
-    version_t ver_;
-    snapshot_group* ssg_;
-
-    void make_me_snapshot_of(const snapshot_sortedmap& src) {
-        verify(ver_ < 0);
-        ver_ = src.ver_;
-        verify(ssg_ == nullptr);
-        ssg_ = (snapshot_group *) src.ssg_->ref_copy();
-        ssg_->snapshots.insert(this);
-    }
-
-    void destory_me() {
-        collect_my_garbage();
-
-        if (ssg_->writer == this) {
-            ssg_->writer = nullptr;
-        } else {
-            ssg_->snapshots.erase(this);
-        }
-
-        ssg_->release();
-        ssg_ = nullptr;
-        ver_ = -1;
-    }
-
-    // creating a snapshot
-    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&): ver_(-1), ssg_(nullptr) {
-        make_me_snapshot_of(src);
-    }
-
-public:
-
     // creating a new snapshot_sortedmap
-    snapshot_sortedmap(): ver_(0) {
+    snapshot_sortedmap(): ver_(0), prev_(this), next_(this) {
         ssg_ = new snapshot_group(this);
     }
 
-    snapshot_sortedmap(const snapshot_sortedmap& src): ver_(-1), ssg_(nullptr) {
+    snapshot_sortedmap(const snapshot_sortedmap& src): ver_(-1), ssg_(nullptr), prev_(nullptr), next_(nullptr) {
         if (src.readonly()) {
             // src is a snapshot, make me a snapshot, too
-            ver_ = -1;
-            ssg_ = nullptr;
             make_me_snapshot_of(src);
         } else {
-            ver_ = 0;
-            ssg_ = new snapshot_group(this);
-            insert(src.all());
+            if (!src.has_writable_snapshot() && (src.ver_ > src.next_->ver_)) {
+                // tiny optimization:
+                // if 1) src does not have writable snapshot in its group,
+                // and 2) src is the snapshot with largest version in its group,
+                // let this become the new writer in src's group
+                ver_ = src.ver_;
+                ssg_ = (snapshot_group *) src.ssg_->ref_copy();
+                // note that we are adding this to the right side of src in the group list
+                prev_ = &src;
+                next_ = src.next_;
+                src.next_ = this;
+                next_->prev_ = this;
+                assert(debug_group_sanity_check());
+            } else {
+                // otherwise: just copy everything!
+                ver_ = 0;
+                ssg_ = new snapshot_group(this);
+                prev_ = this;
+                next_ = this;
+                insert(src.all());
+            }
         }
     }
 
     template <class Iterator>
-    snapshot_sortedmap(Iterator it_begin, Iterator it_end): ver_(0) {
+    snapshot_sortedmap(Iterator it_begin, Iterator it_end): ver_(0), prev_(this), next_(this) {
         ssg_ = new snapshot_group(this);
         insert(it_begin, it_end);
     }
@@ -201,52 +176,86 @@ public:
     }
 
     bool readonly() const {
-        verify(this != nullptr);
+        assert(this != nullptr);
         return ssg_->writer != this;
     }
 
+    bool writable() const {
+        assert(this != nullptr);
+        return ssg_->writer == this;
+    }
+
     const snapshot_sortedmap& operator= (const snapshot_sortedmap& src) {
+        assert(src.ver_ != -1);
+        assert(src.ssg_ != nullptr);
+        assert(src.prev_ != nullptr);
+        assert(src.next_ != nullptr);
         if (&src != this) {
             destory_me();
             if (src.readonly()) {
                 make_me_snapshot_of(src);
             } else {
-                verify(ver_ == -1);
-                verify(ssg_ == nullptr);
+                assert(ver_ == -1);
+                assert(ssg_ == nullptr);
+                assert(prev_ == nullptr);
+                assert(next_ == nullptr);
                 ver_ = 0;
                 ssg_ = new snapshot_group(this);
+                prev_ = this;
+                next_ = this;
                 insert(src.all());
             }
         }
+        assert(ver_ != -1);
+        assert(ssg_ != nullptr);
+        assert(prev_ != nullptr);
+        assert(next_ != nullptr);
         return *this;
     }
 
     // snapshot: readonly
     bool has_readonly_snapshot() const {
-        return !ssg_->snapshots.empty();
+        if (this->readonly()) {
+            return true;
+        } else {
+            // I'm the writer!
+            assert(this->ssg_->writer == this);
+            return this->prev_->readonly();
+        }
     }
 
     bool has_writable_snapshot() const {
         return ssg_->writer != nullptr;
     }
 
+    size_t snapshot_count() const {
+        size_t count = 0;
+        const snapshot_sortedmap* p = this;
+        const snapshot_sortedmap* q = this;
+        do {
+            count++;
+            q = q->next_;
+        } while(q != p);
+        return count;
+    }
+
     snapshot_sortedmap snapshot() const {
+        assert(ver_ != -1);
+        assert(ssg_ != nullptr);
+        assert(prev_ != nullptr);
+        assert(next_ != nullptr);
         return snapshot_sortedmap(*this, snapshot_marker());
     }
 
-    const std::set<snapshot_sortedmap*>& all_snapshots() const {
-        return this->ssg_->snapshots;
-    }
-
     void insert(const Key& key, const Value& value) {
-        verify(!readonly());
+        verify(writable());
         ver_++;
         versioned_value<Value> vv(ver_, value);
         insert_into_map(ssg_->data, key, vv);
     }
 
     void insert(const value_type& kv_pair) {
-        verify(!readonly());
+        verify(writable());
         ver_++;
         versioned_value<Value> vv(ver_, kv_pair.second);
         insert_into_map(ssg_->data, kv_pair.first, vv);
@@ -254,7 +263,7 @@ public:
 
     template <class Iterator>
     void insert(Iterator begin, Iterator end) {
-        verify(!readonly());
+        verify(writable());
         ver_++;
         while (begin != end) {
             versioned_value<Value> vv(ver_, begin->second);
@@ -264,7 +273,7 @@ public:
     }
 
     void insert(range_type range) {
-        verify(!readonly());
+        verify(writable());
         ver_++;
         while (range) {
             value_type kv_pair = range.next();
@@ -274,11 +283,11 @@ public:
     }
 
     void erase(const Key& key) {
-        verify(!readonly());
+        verify(writable());
         ver_++;
         if (has_readonly_snapshot()) {
             for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
-                verify(key == it->first);
+                assert(key == it->first);
                 it->second.remove(ver_);
             }
             insert_into_map(ssg_->removed_key_ranges, ver_, std::make_pair(key, key));
@@ -312,76 +321,125 @@ public:
 
 private:
 
-    void gc_last_snapshot() {
-        // do nothing, let dtor take over
+    // empty struct, used to mark a ctor as snapshotting
+    struct snapshot_marker {};
+
+    version_t ver_;
+    snapshot_group* ssg_;
+
+    // doubly linked list of all snapshots in a group
+    mutable const snapshot_sortedmap* prev_;
+    mutable const snapshot_sortedmap* next_;
+
+
+    // creating a snapshot
+    snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&)
+            : ver_(-1), ssg_(nullptr), prev_(nullptr), next_(nullptr) {
+        make_me_snapshot_of(src);
+    }
+
+
+    void make_me_snapshot_of(const snapshot_sortedmap& src) {
+        assert(ver_ < 0);
+        ver_ = src.ver_;
+        assert(ssg_ == nullptr);
+        ssg_ = (snapshot_group *) src.ssg_->ref_copy();
+
+        // join snapshot group doubly linked list
+        assert(prev_ == nullptr);
+        assert(next_ == nullptr);
+        assert(src.prev_ != nullptr);
+        assert(src.next_ != nullptr);
+        // insert to left of src, because src might be writable, and increase its version
+        this->prev_ = src.prev_;
+        this->next_ = &src;
+        src.prev_->next_ = this;
+        src.prev_ = this;
+        assert(debug_group_sanity_check());
+    }
+
+    void destory_me() {
+        assert(debug_group_sanity_check());
+        collect_my_garbage();
+
+        if (ssg_->writer == this) {
+            // remove writer in snapshot group
+            ssg_->writer = nullptr;
+        }
+
+        if (prev_ != this) {
+            // not the last item, update doubly linked list
+            prev_->next_ = this->next_;
+            next_->prev_ = this->prev_;
+        }
+
+        this->prev_ = nullptr;
+        this->next_ = nullptr;
+        ssg_->release();
+        ssg_ = nullptr;
+        ver_ = -1;
+    }
+
+    bool debug_group_sanity_check() {
+        if (ssg_->writer != nullptr) {
+            const snapshot_sortedmap* w = ssg_->writer;
+            // check writer is in group
+            bool writer_is_in_group = false;
+            const snapshot_sortedmap* p = this;
+            const snapshot_sortedmap* q = this;
+            do {
+                if (q == w) {
+                    writer_is_in_group = true;
+                    break;
+                }
+                q = q->next_;
+            } while(q != p);
+            verify(writer_is_in_group);
+            // check writer has highest version
+            verify(w->ver_ >= w->prev_->ver_);
+            verify(w->ver_ >= w->next_->ver_);
+        }
+        // check ordering
+        int order_flip_count = 0;
+        const snapshot_sortedmap* p = this;
+        const snapshot_sortedmap* q = this;
+        do {
+            if (q->ver_ > q->next_->ver_) {
+                order_flip_count++;
+            }
+            q = q->next_;
+        } while(q != p);
+        verify(order_flip_count < 2);
+        return true;
+    }
+
+    void gc_snapshot_group_front() {
+        assert(prev_->ver_ >= next_->ver_);
+        version_t gc_before;
+        version_t gc_after;
+        // TODO
+    }
+
+    void gc_snapshot_group_middle() {
+        // TODO
+    }
+
+    void gc_snapshot_group_back() {
+        assert(prev_->ver_ >= next_->ver_);
+        // TODO
     }
 
     void collect_my_garbage() {
-        // TODO case by case GC, write gc_XYZ() functions
-        verify(ver_ >= 0);
-
-        // TODO when removing a snapshot S, GC keys only visible to this snapshot
-        // if S is writer, let S' be the snapshot with highest version, any key invalid_at_and_after(S') should be collected
-        // if S is reader, let S1 < S < S2, keys created_at > S1, deleted_at <= S2 should be collected
-
-        // handle the special case of writer being destroyed
-        if (!this->readonly() && !all_snapshots().empty()) {
-            version_t max_ver = -1;
-            for (auto it: all_snapshots()) {
-                if (max_ver < it->version()) {
-                    max_ver = it->version();
-                }
-            }
-            auto it = ssg_->data.begin();
-            while (it != ssg_->data.end()) {
-                // all future query will have version > next_smallest_ver
-                if (it->second.invalid_at_and_before(max_ver)) {
-                    it = ssg_->data.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-            return;
+        if (prev_ == this) {
+            assert(prev_ == next_ && this != nullptr);
+            // last instance, do nothing, let dtor take over
+        } else if (prev_->ver_ > this->ver_ && this->ver_ < next_->ver_) {
+            gc_snapshot_group_front();
+        } else if (prev_->ver_ < this->ver_ && this->ver_ < next_->ver_) {
+            gc_snapshot_group_middle();
+        } else if (prev_->ver_ < this->ver_ && this->ver_ > next_->ver_) {
+            gc_snapshot_group_back();
         }
-
-        for (auto& it : all_snapshots()) {
-            if (it != this && it->version() <= this->version()) {
-                return;
-            }
-        }
-
-        version_t next_smallest_ver = -1;
-        for (auto& it : all_snapshots()) {
-            if (it == this) {
-                continue;
-            }
-            next_smallest_ver = it->version();
-            break;
-        }
-        if (next_smallest_ver == -1) {
-            next_smallest_ver = ver_ + 1;
-        }
-
-        // GC based on tracking removed keys
-        auto it_key_range = ssg_->removed_key_ranges.begin();
-        while (it_key_range != ssg_->removed_key_ranges.upper_bound(next_smallest_ver)) {
-
-            const Key& low = it_key_range->second.first;
-            const Key& high = it_key_range->second.second;
-            verify(low <= high);
-
-            auto it = ssg_->data.lower_bound(low);
-            while (it != ssg_->data.upper_bound(high)) {
-                // all future query will have version > next_smallest_ver
-                if (it->second.invalid_at_and_after(next_smallest_ver)) {
-                    it = ssg_->data.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-            it_key_range = ssg_->removed_key_ranges.erase(it_key_range);
-        }
-        return;
     }
 
 };
