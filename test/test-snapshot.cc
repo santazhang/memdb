@@ -37,8 +37,8 @@ TEST(snapshot, snapshot_on_empty_table) {
 
 static void print_range(snapshot_sortedmap<int, string>::kv_range range) {
     while (range) {
-        pair<const int*, const string*> kv_pair = range.next();
-        Log::debug("%d => %s", *kv_pair.first, kv_pair.second->c_str());
+        pair<const int&, const string&> kv_pair = range.next();
+        Log::debug("%d => %s", kv_pair.first, kv_pair.second.c_str());
     }
 }
 

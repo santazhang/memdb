@@ -35,7 +35,7 @@ struct versioned_value {
 };
 
 template <class Key, class Value, class Iterator, class Snapshot>
-class snapshot_range: public Enumerator<std::pair<const Key*, const Value*>> {
+class snapshot_range: public Enumerator<std::pair<const Key&, const Value&>> {
     Snapshot snapshot_;
     Iterator begin_, end_, next_;
     bool cached_;
@@ -68,12 +68,12 @@ public:
         }
     }
 
-    std::pair<const Key*, const Value*> next() {
+    std::pair<const Key&, const Value&> next() {
         if (!cached_) {
             verify(prefetch_next());
         }
         cached_ = false;
-        return cached_next_;
+        return std::pair<const Key&, const Value&>(*cached_next_.first, *cached_next_.second);
     }
 
     int count() {
@@ -93,17 +93,17 @@ public:
 
 // note: this includes both writer and snapshots
 template <class Key, class Value, class Container, class Snapshot>
-struct snapshotset: public RefCounted {
+struct snapshotgroup: public RefCounted {
     Container data;
     std::multimap<version_t, std::pair<Key, Key>> removed_key_ranges;
     Snapshot* writer;
     std::set<Snapshot*> snapshots;
 
-    snapshotset(Snapshot* w): writer(w) {}
+    snapshotgroup(Snapshot* w): writer(w) {}
 
     // protected dtor as required by RefCounted
 protected:
-    ~snapshotset() {}
+    ~snapshotgroup() {}
 };
 
 // empty class, used to mark a ctor as snapshotting
@@ -121,11 +121,11 @@ public:
         typename std::multimap<Key, versioned_value<Value>>::const_iterator,
         snapshot_sortedmap> kv_range;
 
-    typedef snapshotset<
+    typedef snapshotgroup<
         Key,
         Value,
         typename std::multimap<Key, versioned_value<Value>>,
-        snapshot_sortedmap> snapshotset;
+        snapshot_sortedmap> snapshotgroup;
 
     typedef typename std::pair<const Key&, const Value&> value_type;
 
@@ -133,35 +133,35 @@ private:
 
     bool rdonly_;
     version_t ver_;
-    snapshotset* sss_;
+    snapshotgroup* ssg_;
 
     void make_me_snapshot_of(const snapshot_sortedmap& src) {
         verify(ver_ < 0);
         ver_ = src.ver_;
         verify(rdonly_ == true);
-        verify(sss_ == nullptr);
-        sss_ = (snapshotset *) src.sss_->ref_copy();
-        sss_->snapshots.insert(this);
+        verify(ssg_ == nullptr);
+        ssg_ = (snapshotgroup *) src.ssg_->ref_copy();
+        ssg_->snapshots.insert(this);
     }
 
     void destory_me() {
         collect_my_garbage();
 
-        if (sss_->writer == this) {
-            sss_->writer = nullptr;
+        if (ssg_->writer == this) {
+            ssg_->writer = nullptr;
         } else {
-            sss_->snapshots.erase(this);
+            ssg_->snapshots.erase(this);
         }
 
-        sss_->release();
-        sss_ = nullptr;
+        ssg_->release();
+        ssg_ = nullptr;
         rdonly_ = true;
         ver_ = -1;
     }
 
     // creating a snapshot
     snapshot_sortedmap(const snapshot_sortedmap& src, const snapshot_marker&)
-            : rdonly_(true), ver_(-1), sss_(nullptr) {
+            : rdonly_(true), ver_(-1), ssg_(nullptr) {
         make_me_snapshot_of(src);
     }
 
@@ -169,28 +169,28 @@ public:
 
     // creating a new snapshot_sortedmap
     snapshot_sortedmap(): rdonly_(false), ver_(0) {
-        sss_ = new snapshotset(this);
+        ssg_ = new snapshotgroup(this);
     }
 
     snapshot_sortedmap(const snapshot_sortedmap& src)
-            : rdonly_(false), ver_(-1), sss_(nullptr) {
+            : rdonly_(false), ver_(-1), ssg_(nullptr) {
         if (src.readonly()) {
             // src is a snapshot, make me a snapshot, too
             rdonly_ = true;
             ver_ = -1;
-            sss_ = nullptr;
+            ssg_ = nullptr;
             make_me_snapshot_of(src);
         } else {
             rdonly_ = false;
             ver_ = 0;
-            sss_ = new snapshotset(this);
+            ssg_ = new snapshotgroup(this);
             insert(src.all());
         }
     }
 
     template <class Iterator>
     snapshot_sortedmap(Iterator it_begin, Iterator it_end): rdonly_(false), ver_(0) {
-        sss_ = new snapshotset(this);
+        ssg_ = new snapshotgroup(this);
         insert(it_begin, it_end);
     }
 
@@ -208,7 +208,7 @@ public:
 
     bool readonly() const {
         if (rdonly_) {
-            verify(sss_->writer != this);
+            verify(ssg_->writer != this);
         }
         return rdonly_;
     }
@@ -220,11 +220,11 @@ public:
                 make_me_snapshot_of(src);
             } else {
                 verify(ver_ == -1);
-                verify(sss_ == nullptr);
+                verify(ssg_ == nullptr);
                 verify(rdonly_ == true);
                 rdonly_ = false;
                 ver_ = 0;
-                sss_ = new snapshotset(this);
+                ssg_ = new snapshotgroup(this);
                 insert(src.all());
             }
         }
@@ -233,7 +233,7 @@ public:
 
     // snapshot: readonly
     bool has_snapshot() const {
-        return !sss_->snapshots.empty();
+        return !ssg_->snapshots.empty();
     }
 
     snapshot_sortedmap snapshot() const {
@@ -241,21 +241,21 @@ public:
     }
 
     const std::set<snapshot_sortedmap*>& all_snapshots() const {
-        return this->sss_->snapshots;
+        return this->ssg_->snapshots;
     }
 
     void insert(const Key& key, const Value& value) {
         verify(!readonly());
         ver_++;
         versioned_value<Value> vv(ver_, value);
-        insert_into_map(sss_->data, key, vv);
+        insert_into_map(ssg_->data, key, vv);
     }
 
     void insert(const value_type kv_pair) {
         verify(!readonly());
         ver_++;
         versioned_value<Value> vv(ver_, kv_pair.second);
-        insert_into_map(sss_->data, kv_pair.first, vv);
+        insert_into_map(ssg_->data, kv_pair.first, vv);
     }
 
     template <class Iterator>
@@ -264,7 +264,7 @@ public:
         ver_++;
         while (begin != end) {
             versioned_value<Value> vv(ver_, begin->second);
-            insert_into_map(sss_->data, begin->first, vv);
+            insert_into_map(ssg_->data, begin->first, vv);
             ++begin;
         }
     }
@@ -273,9 +273,9 @@ public:
         verify(!readonly());
         ver_++;
         while (range) {
-            std::pair<const Key*, const Value*> kv_pair = range.next();
-            versioned_value<Value> vv(ver_, *(kv_pair.second));
-            insert_into_map(sss_->data, *(kv_pair.first), vv);
+            value_type kv_pair = range.next();
+            versioned_value<Value> vv(ver_, kv_pair.second);
+            insert_into_map(ssg_->data, kv_pair.first, vv);
         }
     }
 
@@ -283,37 +283,37 @@ public:
         verify(!readonly());
         ver_++;
         if (has_snapshot()) {
-            for (auto it = sss_->data.lower_bound(key); it != sss_->data.upper_bound(key); ++it) {
+            for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
                 verify(key == it->first);
                 it->second.remove(ver_);
             }
-            insert_into_map(sss_->removed_key_ranges, ver_, std::make_pair(key, key));
+            insert_into_map(ssg_->removed_key_ranges, ver_, std::make_pair(key, key));
         } else {
-            auto it = sss_->data.lower_bound(key);
-            while (it != sss_->data.upper_bound(key)) {
-                it = sss_->data.erase(it);
+            auto it = ssg_->data.lower_bound(key);
+            while (it != ssg_->data.upper_bound(key)) {
+                it = ssg_->data.erase(it);
             }
         }
     }
 
     kv_range all() const {
-        return kv_range(this->snapshot(), this->sss_->data.begin(), this->sss_->data.end());
+        return kv_range(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.end());
     }
 
     kv_range query(const Key& key) const {
-        return kv_range(this->snapshot(), this->sss_->data.lower_bound(key), this->sss_->data.upper_bound(key));
+        return kv_range(this->snapshot(), this->ssg_->data.lower_bound(key), this->ssg_->data.upper_bound(key));
     }
 
     kv_range query_lt(const Key& key) const {
-        return kv_range(this->snapshot(), this->sss_->data.begin(), this->sss_->data.lower_bound(key));
+        return kv_range(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.lower_bound(key));
     }
 
     kv_range query_gt(const Key& key) const {
-        return kv_range(this->snapshot(), this->sss_->data.upper_bound(key), this->sss_->data.end());
+        return kv_range(this->snapshot(), this->ssg_->data.upper_bound(key), this->ssg_->data.end());
     }
 
     size_t total_data_count() const {
-        return this->sss_->data.size();
+        return this->ssg_->data.size();
     }
 
 private:
@@ -335,11 +335,11 @@ private:
                     max_ver = it->version();
                 }
             }
-            auto it = sss_->data.begin();
-            while (it != sss_->data.end()) {
+            auto it = ssg_->data.begin();
+            while (it != ssg_->data.end()) {
                 // all future query will have version > next_smallest_ver
                 if (it->second.invalid_at_and_before(max_ver)) {
-                    it = sss_->data.erase(it);
+                    it = ssg_->data.erase(it);
                 } else {
                     ++it;
                 }
@@ -366,23 +366,23 @@ private:
         }
 
         // GC based on tracking removed keys
-        auto it_key_range = sss_->removed_key_ranges.begin();
-        while (it_key_range != sss_->removed_key_ranges.upper_bound(next_smallest_ver)) {
+        auto it_key_range = ssg_->removed_key_ranges.begin();
+        while (it_key_range != ssg_->removed_key_ranges.upper_bound(next_smallest_ver)) {
 
             const Key& low = it_key_range->second.first;
             const Key& high = it_key_range->second.second;
             verify(low <= high);
 
-            auto it = sss_->data.lower_bound(low);
-            while (it != sss_->data.upper_bound(high)) {
+            auto it = ssg_->data.lower_bound(low);
+            while (it != ssg_->data.upper_bound(high)) {
                 // all future query will have version > next_smallest_ver
                 if (it->second.invalid_at_and_after(next_smallest_ver)) {
-                    it = sss_->data.erase(it);
+                    it = ssg_->data.erase(it);
                 } else {
                     ++it;
                 }
             }
-            it_key_range = sss_->removed_key_ranges.erase(it_key_range);
+            it_key_range = ssg_->removed_key_ranges.erase(it_key_range);
         }
         return;
     }
