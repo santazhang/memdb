@@ -325,7 +325,8 @@ public:
     }
 
     // explicit garbage collection
-    void gc_run() {
+    // function marked as const so it can be called from const ref/ptr
+    void gc_run() const {
         version_t ver_low = this->ver_;
         version_t ver_high = -1;
         const snapshot_sortedmap* p = this;
@@ -401,8 +402,14 @@ private:
 
     void destroy_me() {
         assert(debug_group_sanity_check());
+        bool auto_gc = false;
 
         if (ssg_->writer == this) {
+            // try to do auto-gc
+            if (gc_counter() >= 16 && gc_counter() >= gc_size() / 2) {
+                // more than 16 elements, and more than half of content are garbage
+                auto_gc = true;
+            }
             // remove writer in snapshot group
             ssg_->writer = nullptr;
         }
@@ -411,6 +418,11 @@ private:
             // not the last item, update doubly linked list
             prev_->next_ = this->next_;
             next_->prev_ = this->prev_;
+
+            // auto gc on next item
+            if (auto_gc) {
+                next_->gc_run();
+            }
         }
 
         this->prev_ = nullptr;

@@ -193,6 +193,26 @@ TEST(snapshot, multi_version_gc) {
     Log::debug("total data count = %d", final_ss.gc_size());
 }
 
+TEST(snapshot, auto_gc) {
+    snapshot_sortedmap<int, string>* ss = new snapshot_sortedmap<int, string>;
+    for (int i = 0; i < 1000; i++) {
+        ss->insert(i, to_string(i));
+    }
+    snapshot_sortedmap<int, string>* ss2 = new snapshot_sortedmap<int, string>(ss->snapshot());
+    for (int i = 0; i < 10000; i++) {
+        ss->insert(i, to_string(i));
+    }
+    int gc_size1 = ss2->gc_size();
+    int gc_counter1 = ss2->gc_counter();
+    Log::debug("gc_size() = %d, gc_counter() = %d", gc_size1, gc_counter1);
+    delete ss;
+    int gc_size2 = ss2->gc_size();
+    int gc_counter2 = ss2->gc_counter();
+    Log::debug("gc_size() = %d, gc_counter() = %d", gc_size2, gc_counter2);
+    EXPECT_LT(gc_size2, gc_size1);
+    EXPECT_LT(gc_counter2, gc_counter1);
+    delete ss2;
+}
 
 TEST(snapshot, gc) {
     {
