@@ -167,7 +167,7 @@ public:
     }
 
     ~snapshot_sortedmap() {
-        destory_me();
+        destroy_me();
     }
 
     version_t version() const {
@@ -190,7 +190,7 @@ public:
         assert(src.prev_ != nullptr);
         assert(src.next_ != nullptr);
         if (&src != this) {
-            destory_me();
+            destroy_me();
             if (src.readonly()) {
                 make_me_snapshot_of(src);
             } else {
@@ -399,7 +399,7 @@ private:
         }
     }
 
-    void destory_me() {
+    void destroy_me() {
         assert(debug_group_sanity_check());
 
         if (ssg_->writer == this) {
