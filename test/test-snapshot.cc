@@ -170,6 +170,7 @@ TEST(snapshot, multi_version_gc) {
                 snapshots.push_back(ss.snapshot());
             }
         }
+        Log::debug("gc counter = %d", ss.gc_counter());
         for (int i = 0; i < n + 1; i++) {
             EXPECT_EQ(snapshots[i].all().count(), i);
             EXPECT_TRUE(snapshots[i].readonly());
@@ -180,6 +181,7 @@ TEST(snapshot, multi_version_gc) {
                 snapshots.push_back(ss.snapshot());
             }
         }
+        Log::debug("gc counter = %d", ss.gc_counter());
         for (int i = 0; i < n; i++) {
             EXPECT_EQ(snapshots[n + i].all().count(), n - i);
             EXPECT_TRUE(snapshots[n + i].readonly());
@@ -294,7 +296,9 @@ TEST(snapshot, remove_writer_gc) {
     for (int i = 0; i < 10000; i++) {
         ss->insert(i, to_string(i));
     }
+    Log::debug("gc counter = %d", ss->gc_counter());
     ss->gc_run();
+    Log::debug("gc counter = %d", ss->gc_counter());
     EXPECT_EQ(ss->gc_size(), (size_t) 10011);
     EXPECT_EQ(snap.gc_size(), (size_t) 10011);
     EXPECT_EQ(snap2->gc_size(), (size_t) 10011);

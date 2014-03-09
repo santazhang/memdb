@@ -97,7 +97,11 @@ struct snapshot_group: public RefCounted {
     // the writer of the group, nullptr means nobody can write to the group
     Snapshot* writer;
 
-    snapshot_group(Snapshot* w): writer(w) {}
+    // how many insert/erase has been done since last snapshot
+    size_t gc_insert_counter;
+    size_t gc_erase_counter;
+
+    snapshot_group(Snapshot* w): writer(w), gc_insert_counter(0), gc_erase_counter(0) {}
 
     // protected dtor as required by RefCounted
 protected:
@@ -247,6 +251,7 @@ public:
         ver_++;
         versioned_value<Value> vv(ver_, value);
         insert_into_map(ssg_->data, key, vv);
+        ssg_->gc_insert_counter++;
     }
 
     void insert(const value_type& kv_pair) {
@@ -254,6 +259,7 @@ public:
         ver_++;
         versioned_value<Value> vv(ver_, kv_pair.second);
         insert_into_map(ssg_->data, kv_pair.first, vv);
+        ssg_->gc_insert_counter++;
     }
 
     template <class Iterator>
@@ -263,6 +269,7 @@ public:
         while (begin != end) {
             versioned_value<Value> vv(ver_, begin->second);
             insert_into_map(ssg_->data, begin->first, vv);
+            ssg_->gc_insert_counter++;
             ++begin;
         }
     }
@@ -274,6 +281,7 @@ public:
             value_type kv_pair = range.next();
             versioned_value<Value> vv(ver_, kv_pair.second);
             insert_into_map(ssg_->data, kv_pair.first, vv);
+            ssg_->gc_insert_counter++;
         }
     }
 
@@ -284,13 +292,11 @@ public:
             for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
                 assert(key == it->first);
                 it->second.remove(ver_);
+                ssg_->gc_erase_counter++;
             }
         } else {
             // no body can observe the removed keys, so directly erase them
-            auto it = ssg_->data.lower_bound(key);
-            while (it != ssg_->data.upper_bound(key)) {
-                it = ssg_->data.erase(it);
-            }
+            ssg_->data.erase(key);
         }
     }
 
@@ -312,6 +318,10 @@ public:
 
     size_t gc_size() const {
         return this->ssg_->data.size();
+    }
+
+    size_t gc_counter() const {
+        return this->ssg_->gc_insert_counter + this->ssg_->gc_erase_counter;
     }
 
     // explicit garbage collection
@@ -341,6 +351,8 @@ public:
                 ++it;
             }
         }
+        ssg_->gc_insert_counter = 0;
+        ssg_->gc_erase_counter = 0;
     }
 
 private:
@@ -380,6 +392,11 @@ private:
         src.prev_->next_ = this;
         src.prev_ = this;
         assert(debug_group_sanity_check());
+
+        if (src.writable()) {
+            src.ssg_->gc_insert_counter = 0;
+            src.ssg_->gc_erase_counter = 0;
+        }
     }
 
     void destory_me() {
