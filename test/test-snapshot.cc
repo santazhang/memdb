@@ -188,7 +188,7 @@ TEST(snapshot, multi_version_gc) {
     }
     EXPECT_TRUE(final_ss.readonly());
     EXPECT_EQ(final_ss.all().count(), 0);
-    Log::debug("total data count = %d", final_ss.debug_storage_size());
+    Log::debug("total data count = %d", final_ss.gc_size());
 }
 
 
@@ -216,8 +216,8 @@ TEST(snapshot, gc) {
         ss = ss2;
         EXPECT_FALSE(ss.readonly());
         EXPECT_FALSE(ss2.readonly());
-        EXPECT_EQ(ss.debug_storage_size(), (size_t) 0);
-        EXPECT_EQ(ss2.debug_storage_size(), (size_t) 0);
+        EXPECT_EQ(ss.gc_size(), (size_t) 0);
+        EXPECT_EQ(ss2.gc_size(), (size_t) 0);
     }
 }
 
@@ -226,20 +226,29 @@ TEST(snapshot, versions_and_gc) {
     EXPECT_EQ(s1->version(), 0);
     s1->insert(1, "hi");
     EXPECT_EQ(s1->version(), 1);
+    snapshot_sortedmap<int, string>* sa = new snapshot_sortedmap<int, string>(s1->snapshot());
     s1->insert(2, "hello");
     EXPECT_EQ(s1->version(), 2);
+    print_range(s1->all());
     snapshot_sortedmap<int, string>* s2 = new snapshot_sortedmap<int, string>(s1->snapshot());
     EXPECT_EQ(s2->version(), 2);
     s1->erase(1);
     EXPECT_EQ(s1->version(), 3);
     s1->erase(2);
     EXPECT_EQ(s1->version(), 4);
-    EXPECT_EQ(s1->debug_storage_size(), 2u);
-    Log::debug("total data count = %d", s1->debug_storage_size());
+    EXPECT_EQ(s1->gc_size(), 2u);
+    Log::debug("total data count = %d", s1->gc_size());
+    print_range(s2->all());
+    print_range(s1->all());
     delete s2;
-    // now "1 => hi" is garbage collected
-    EXPECT_EQ(s1->debug_storage_size(), 1u);
-    Log::debug("total data count = %d", s1->debug_storage_size());
+    s1->gc_run();
+    EXPECT_EQ(s1->gc_size(), 2u);
+    delete sa;
+    s1->gc_run();
+    print_range(s1->all());
+    s1->gc_run();
+    EXPECT_EQ(s1->gc_size(), 1u);
+    Log::debug("total data count = %d", s1->gc_size());
     delete s1;
 }
 
@@ -247,11 +256,11 @@ TEST(snapshot, fast_key_removal) {
     snapshot_sortedmap<int, string> ss;
     ss.insert(1, "hi");
     ss.insert(2, "hello");
-    EXPECT_EQ(ss.debug_storage_size(), (size_t) 2);
+    EXPECT_EQ(ss.gc_size(), (size_t) 2);
     ss.erase(1);
-    EXPECT_EQ(ss.debug_storage_size(), (size_t) 1);
+    EXPECT_EQ(ss.gc_size(), (size_t) 1);
     ss.erase(2);
-    EXPECT_EQ(ss.debug_storage_size(), (size_t) 0);
+    EXPECT_EQ(ss.gc_size(), (size_t) 0);
 }
 
 
@@ -264,9 +273,6 @@ TEST(snapshot, version_validation) {
     EXPECT_FALSE(v.valid_at(1986));
     EXPECT_TRUE(v.valid_at(1987));
     EXPECT_FALSE(v.valid_at(1988));
-    EXPECT_FALSE(v.invalid_at_and_after(1986));
-    EXPECT_FALSE(v.invalid_at_and_after(1987));
-    EXPECT_TRUE(v.invalid_at_and_after(1988));
 }
 
 TEST(snapshot, remove_writer_gc) {
@@ -288,17 +294,20 @@ TEST(snapshot, remove_writer_gc) {
     for (int i = 0; i < 10000; i++) {
         ss->insert(i, to_string(i));
     }
-    EXPECT_EQ(ss->debug_storage_size(), (size_t) 10011);
-    EXPECT_EQ(snap.debug_storage_size(), (size_t) 10011);
-    EXPECT_EQ(snap2->debug_storage_size(), (size_t) 10011);
+    ss->gc_run();
+    EXPECT_EQ(ss->gc_size(), (size_t) 10011);
+    EXPECT_EQ(snap.gc_size(), (size_t) 10011);
+    EXPECT_EQ(snap2->gc_size(), (size_t) 10011);
     delete ss;
-    EXPECT_EQ(snap.debug_storage_size(), (size_t) 11);
-    EXPECT_EQ(snap2->debug_storage_size(), (size_t) 11);
+    snap.gc_run();
+    EXPECT_EQ(snap.gc_size(), (size_t) 11);
+    EXPECT_EQ(snap2->gc_size(), (size_t) 11);
     Log::debug("snap2 content:");
     print_range(snap2->all());
     EXPECT_EQ(snap2->all().count(), 11);
     delete snap2;
-    EXPECT_EQ(snap.debug_storage_size(), (size_t) 11);
+    snap.gc_run();
+    EXPECT_EQ(snap.gc_size(), 1u);
     EXPECT_EQ(snap.all().count(), 1);
 }
 

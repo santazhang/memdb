@@ -12,20 +12,16 @@ typedef int64_t version_t;
 
 template <class Value>
 struct versioned_value {
-    version_t created_at, removed_at;
+    const version_t created_at;
+    version_t removed_at;
 
     // const value, not modifiable
     const Value val;
 
     versioned_value(version_t created, const Value& v): created_at(created), removed_at(-1), val(v) {}
+
     bool valid_at(version_t v) const {
         return created_at <= v && (removed_at == -1 || v < removed_at);
-    }
-    bool invalid_at_and_before(version_t v) const {
-        return v < created_at;
-    }
-    bool invalid_at_and_after(version_t v) const {
-        return removed_at >= 0 && removed_at <= v;
     }
     void remove(version_t v) {
         assert(removed_at == -1);
@@ -97,7 +93,6 @@ public:
 template <class Key, class Value, class Container, class Snapshot>
 struct snapshot_group: public RefCounted {
     Container data;
-    std::multimap<version_t, std::pair<Key, Key>> removed_key_ranges;
 
     // the writer of the group, nullptr means nobody can write to the group
     Snapshot* writer;
@@ -290,8 +285,8 @@ public:
                 assert(key == it->first);
                 it->second.remove(ver_);
             }
-            insert_into_map(ssg_->removed_key_ranges, ver_, std::make_pair(key, key));
         } else {
+            // no body can observe the removed keys, so directly erase them
             auto it = ssg_->data.lower_bound(key);
             while (it != ssg_->data.upper_bound(key)) {
                 it = ssg_->data.erase(it);
@@ -315,8 +310,37 @@ public:
         return range_type(this->snapshot(), this->ssg_->data.upper_bound(key), this->ssg_->data.end());
     }
 
-    size_t debug_storage_size() const {
+    size_t gc_size() const {
         return this->ssg_->data.size();
+    }
+
+    // explicit garbage collection
+    void gc_run() {
+        version_t ver_low = this->ver_;
+        version_t ver_high = -1;
+        const snapshot_sortedmap* p = this;
+        const snapshot_sortedmap* q = this;
+        do {
+            if (q->ver_ < ver_low) {
+                ver_low = q->ver_;
+            }
+            if (q->ver_ > ver_high) {
+                ver_high = q->ver_;
+            }
+            q = q->next_;
+        } while(q != p);
+
+        // found ver_low and ver_high, drop keys that
+        // created_at > ver_high || (removed_at == -1 && removed_at < ver_low)
+        auto it = ssg_->data.begin();
+        while (it != ssg_->data.end()) {
+            const versioned_value<Value>& vv = it->second;
+            if (vv.created_at > ver_high || (vv.removed_at != -1 && vv.removed_at < ver_low)) {
+                it = ssg_->data.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
 private:
@@ -360,7 +384,6 @@ private:
 
     void destory_me() {
         assert(debug_group_sanity_check());
-        collect_my_garbage();
 
         if (ssg_->writer == this) {
             // remove writer in snapshot group
@@ -381,65 +404,35 @@ private:
     }
 
     bool debug_group_sanity_check() {
-        if (ssg_->writer != nullptr) {
-            const snapshot_sortedmap* w = ssg_->writer;
-            // check writer is in group
-            bool writer_is_in_group = false;
-            const snapshot_sortedmap* p = this;
-            const snapshot_sortedmap* q = this;
-            do {
-                if (q == w) {
-                    writer_is_in_group = true;
-                    break;
-                }
-                q = q->next_;
-            } while(q != p);
-            verify(writer_is_in_group);
-            // check writer has highest version
-            verify(w->ver_ >= w->prev_->ver_);
-            verify(w->ver_ >= w->next_->ver_);
-        }
+        // check writer is in group
+        const snapshot_sortedmap* w = nullptr;
+        bool writer_is_in_group = false;
+
         // check ordering
         int order_flip_count = 0;
+
+        if (ssg_->writer != nullptr) {
+            w = ssg_->writer;
+        }
         const snapshot_sortedmap* p = this;
         const snapshot_sortedmap* q = this;
         do {
+            if (q == w) {
+                writer_is_in_group = true;
+            }
             if (q->ver_ > q->next_->ver_) {
                 order_flip_count++;
             }
             q = q->next_;
         } while(q != p);
         verify(order_flip_count < 2);
-        return true;
-    }
-
-    void gc_snapshot_group_front() {
-        assert(prev_->ver_ >= next_->ver_);
-        version_t gc_before;
-        version_t gc_after;
-        // TODO
-    }
-
-    void gc_snapshot_group_middle() {
-        // TODO
-    }
-
-    void gc_snapshot_group_back() {
-        assert(prev_->ver_ >= next_->ver_);
-        // TODO
-    }
-
-    void collect_my_garbage() {
-        if (prev_ == this) {
-            assert(prev_ == next_ && this != nullptr);
-            // last instance, do nothing, let dtor take over
-        } else if (prev_->ver_ > this->ver_ && this->ver_ < next_->ver_) {
-            gc_snapshot_group_front();
-        } else if (prev_->ver_ < this->ver_ && this->ver_ < next_->ver_) {
-            gc_snapshot_group_middle();
-        } else if (prev_->ver_ < this->ver_ && this->ver_ > next_->ver_) {
-            gc_snapshot_group_back();
+        if (w != nullptr) {
+            verify(writer_is_in_group);
+            // check writer has highest version
+            verify(w->ver_ >= w->prev_->ver_);
+            verify(w->ver_ >= w->next_->ver_);
         }
+        return true;
     }
 
 };
