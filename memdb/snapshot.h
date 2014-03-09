@@ -118,13 +118,13 @@ public:
         Key,
         Value,
         typename std::multimap<Key, versioned_value<Value>>,
-        snapshot_sortedmap> snapshot_group;
+        snapshot_sortedmap> group_type;
 
     typedef typename std::pair<const Key&, const Value&> value_type;
 
     // creating a new snapshot_sortedmap
     snapshot_sortedmap(): ver_(0), prev_(this), next_(this) {
-        ssg_ = new snapshot_group(this);
+        ssg_ = new group_type(this);
     }
 
     snapshot_sortedmap(const snapshot_sortedmap& src): ver_(-1), ssg_(nullptr), prev_(nullptr), next_(nullptr) {
@@ -138,7 +138,7 @@ public:
                 // and 2) src is the snapshot with largest version in its group,
                 // let this become the new writer in src's group
                 ver_ = src.ver_;
-                ssg_ = (snapshot_group *) src.ssg_->ref_copy();
+                ssg_ = (group_type *) src.ssg_->ref_copy();
                 // note that we are adding this to the right side of src in the group list
                 prev_ = &src;
                 next_ = src.next_;
@@ -148,7 +148,7 @@ public:
             } else {
                 // otherwise: just copy everything!
                 ver_ = 0;
-                ssg_ = new snapshot_group(this);
+                ssg_ = new group_type(this);
                 prev_ = this;
                 next_ = this;
                 insert(src.all());
@@ -158,7 +158,7 @@ public:
 
     template <class Iterator>
     snapshot_sortedmap(Iterator it_begin, Iterator it_end): ver_(0), prev_(this), next_(this) {
-        ssg_ = new snapshot_group(this);
+        ssg_ = new group_type(this);
         insert(it_begin, it_end);
     }
 
@@ -195,7 +195,7 @@ public:
                 assert(prev_ == nullptr);
                 assert(next_ == nullptr);
                 ver_ = 0;
-                ssg_ = new snapshot_group(this);
+                ssg_ = new group_type(this);
                 prev_ = this;
                 next_ = this;
                 insert(src.all());
@@ -349,7 +349,7 @@ private:
     struct snapshot_marker {};
 
     version_t ver_;
-    snapshot_group* ssg_;
+    group_type* ssg_;
 
     // doubly linked list of all snapshots in a group
     mutable const snapshot_sortedmap* prev_;
@@ -367,7 +367,7 @@ private:
         assert(ver_ < 0);
         ver_ = src.ver_;
         assert(ssg_ == nullptr);
-        ssg_ = (snapshot_group *) src.ssg_->ref_copy();
+        ssg_ = (group_type *) src.ssg_->ref_copy();
 
         // join snapshot group doubly linked list
         assert(prev_ == nullptr);
