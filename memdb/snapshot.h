@@ -56,10 +56,10 @@ public:
     snapshot_range(const Snapshot& snapshot, Iterator it_begin, Iterator it_end)
         : snapshot_(snapshot), begin_(it_begin), end_(it_end), next_(it_begin), cached_(false), count_(-1) {}
 
-    Iterator begin() {
+    Iterator begin() const {
         return begin_;
     }
-    Iterator end() {
+    Iterator end() const {
         return end_;
     }
 
@@ -122,7 +122,7 @@ public:
     typedef snapshot_range<
         Key,
         Value,
-        typename std::multimap<Key, versioned_value<Value>>::const_iterator,
+        typename std::multimap<Key, versioned_value<Value>>::iterator,
         snapshot_sortedmap> range_type;
 
     typedef snapshot_group<
@@ -357,8 +357,8 @@ public:
 
     void erase(const range_type& range) {
         verify(writable());
-        typename std::multimap<Key, versioned_value<Value>>::const_iterator begin = range.begin();
-        typename std::multimap<Key, versioned_value<Value>>::const_iterator end = range.end();
+        typename std::multimap<Key, versioned_value<Value>>::iterator begin = range.begin();
+        typename std::multimap<Key, versioned_value<Value>>::iterator end = range.end();
         version_t orig_ver = ver_;
         ver_++;
         if (has_readonly_snapshot()) {
@@ -367,9 +367,8 @@ public:
                 if (it->second.valid_at(orig_ver)) {
                     // only remove visible values
                     it->second.remove(ver_);
-                } else {
-                    ++it;
                 }
+                ++it;
             }
         } else {
             // nobody can observe the removed range, so directly erase it

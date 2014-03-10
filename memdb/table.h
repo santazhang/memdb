@@ -15,7 +15,8 @@
 
 namespace mdb {
 
-class Table {
+// Tables are NoCopy, because they might maintain a pointer to schema, which should not be shared
+class Table: public NoCopy {
 public:
     virtual ~Table() {}
     virtual void insert(Row* row) = 0;
@@ -287,12 +288,21 @@ public:
         int count() {
             return range_.count();
         }
+        const table_type::range_type& get_range() const {
+            return range_;
+        }
     };
 
     SnapshotTable(Schema* sch): schema_(sch) {}
     ~SnapshotTable() {
         // do not delete the schema!
         // because there might be snapshot copies trying to access the schema data!
+    }
+
+    SnapshotTable* snapshot() const {
+        SnapshotTable* copy = new SnapshotTable(schema_);
+        copy->rows_ = rows_.snapshot();
+        return copy;
     }
 
     const Schema* schema() const {
@@ -376,8 +386,9 @@ public:
         rows_.erase(key, row);
     }
 
-    // void remove(Cursor cur);
+    void remove(const Cursor& cur) {
+        rows_.erase(cur.get_range());
+    }
 };
-
 
 } // namespace mdb
