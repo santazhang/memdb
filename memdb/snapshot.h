@@ -39,7 +39,6 @@ class snapshot_range: public Enumerator<std::pair<const Key&, const Value&>> {
     int count_;
 
     bool prefetch_next() {
-        Log::debug("called me");
         assert(cached_ == false);
         while (cached_ == false && next_ != end_) {
             if (next_->second.valid_at(snapshot_.version())) {
@@ -67,7 +66,7 @@ public:
 
     std::pair<const Key&, const Value&> next() {
         if (!cached_) {
-            assert(prefetch_next());
+            verify(prefetch_next());
         }
         cached_ = false;
         return std::pair<const Key&, const Value&>(*cached_next_.first, *cached_next_.second);

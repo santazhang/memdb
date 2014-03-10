@@ -280,6 +280,7 @@ public:
             return range_.has_next();
         }
         virtual const Row* next() {
+            verify(has_next());
             const std::shared_ptr<const Row>& row = range_.next().second;
             return row.get();
         }
@@ -302,6 +303,10 @@ public:
         SortedMultiKey key = SortedMultiKey(row->get_key(), schema_);
         verify(row->schema() == schema_);
         row->set_table(this);
+
+        // make the row readonly, to gaurante snapshot is not changed
+        row->make_readonly();
+
         insert_into_map(rows_, key, std::shared_ptr<const Row>(row));
     }
     Cursor query(const Value& kv) {
@@ -313,7 +318,6 @@ public:
     Cursor query(const SortedMultiKey& smk) {
         return Cursor(rows_.query(smk));
     }
-
 
     Cursor query_lt(const Value& kv) {
         return query_lt(kv.get_blob());
