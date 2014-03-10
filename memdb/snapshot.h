@@ -300,6 +300,8 @@ public:
         }
     }
 
+    // TODO erase a certain key (like erase based on iterator)
+
     range_type all() const {
         return range_type(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.end());
     }
@@ -314,6 +316,10 @@ public:
 
     range_type query_gt(const Key& key) const {
         return range_type(this->snapshot(), this->ssg_->data.upper_bound(key), this->ssg_->data.end());
+    }
+
+    range_type query_in(const Key& low, const Key& high) const {
+        return range_type(this->snapshot(), this->ssg_->data.lower_bound(low), this->ssg_->data.upper_bound(high));
     }
 
     size_t gc_size() const {

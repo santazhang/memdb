@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "blob.h"
 
+#include "snapshot.h"
+
 namespace mdb {
 
 class Table {
@@ -141,13 +143,13 @@ public:
     }
 
     Cursor query_in(const Value& low, const Value& high) {
-        assert(low < high);
         return query_in(low.get_blob(), high.get_blob());
     }
     Cursor query_in(const MultiBlob& low, const MultiBlob& high) {
         return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_));
     }
     Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high) {
+        verify(low < high);
         auto low_bound = rows_.upper_bound(low);
         auto high_bound = rows_.lower_bound(high);
         return Cursor(low_bound, high_bound);
@@ -257,5 +259,113 @@ private:
     // indexed by key values
     std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash> rows_;
 };
+
+
+class SnapshotTable: public Table {
+
+    Schema* schema_;
+
+    // indexed by key values
+    typedef snapshot_sortedmap<SortedMultiKey, std::shared_ptr<const Row>> table_type;
+    table_type rows_;
+
+public:
+
+    class Cursor: public Enumerator<const Row*> {
+        table_type::range_type range_;
+    public:
+        Cursor(const table_type::range_type& range): range_(range) {}
+        virtual bool has_next() {
+            return range_.has_next();
+        }
+        virtual const Row* next() {
+            const std::shared_ptr<const Row>& row = range_.next().second;
+            return row.get();
+        }
+        int count() {
+            return range_.count();
+        }
+    };
+
+    SnapshotTable(Schema* sch): schema_(sch) {}
+    ~SnapshotTable() {
+        delete schema_;
+    }
+
+    const Schema* schema() const {
+        return schema_;
+    }
+
+    void insert(Row* row) {
+        SortedMultiKey key = SortedMultiKey(row->get_key(), schema_);
+        verify(row->schema() == schema_);
+        row->set_table(this);
+        insert_into_map(rows_, key, std::shared_ptr<const Row>(row));
+    }
+    Cursor query(const Value& kv) {
+        return query(kv.get_blob());
+    }
+    Cursor query(const MultiBlob& mb) {
+        return query(SortedMultiKey(mb, schema_));
+    }
+    Cursor query(const SortedMultiKey& smk) {
+        return Cursor(rows_.query(smk));
+    }
+
+
+    Cursor query_lt(const Value& kv) {
+        return query_lt(kv.get_blob());
+    }
+    Cursor query_lt(const MultiBlob& mb) {
+        return query_lt(SortedMultiKey(mb, schema_));
+    }
+    Cursor query_lt(const SortedMultiKey& smk) {
+        return Cursor(rows_.query_lt(smk));
+    }
+
+    Cursor query_gt(const Value& kv) {
+        return query_gt(kv.get_blob());
+    }
+    Cursor query_gt(const MultiBlob& mb) {
+        return query_gt(SortedMultiKey(mb, schema_));
+    }
+    Cursor query_gt(const SortedMultiKey& smk) {
+        return Cursor(rows_.query_gt(smk));
+    }
+
+    Cursor query_in(const Value& low, const Value& high) {
+        return query_in(low.get_blob(), high.get_blob());
+    }
+    Cursor query_in(const MultiBlob& low, const MultiBlob& high) {
+        return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_));
+    }
+    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high) {
+        verify(low < high);
+        return Cursor(rows_.query_in(low, high));
+    }
+
+    Cursor all() const {
+        return Cursor(rows_.all());
+    }
+
+    void clear() {
+        rows_ = table_type();
+    }
+
+    void remove(const Value& kv) {
+        remove(kv.get_blob());
+    }
+    void remove(const MultiBlob& mb) {
+        remove(SortedMultiKey(mb, schema_));
+    }
+    void remove(const SortedMultiKey& smk) {
+        rows_.erase(smk);
+    }
+
+    // TODO more remove functions
+     void remove(Row* row, bool do_free = true);
+    // void remove(Cursor cur);
+};
+
 
 } // namespace mdb
