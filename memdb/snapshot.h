@@ -56,6 +56,13 @@ public:
     snapshot_range(const Snapshot& snapshot, Iterator it_begin, Iterator it_end)
         : snapshot_(snapshot), begin_(it_begin), end_(it_end), next_(it_begin), cached_(false), count_(-1) {}
 
+    Iterator begin() {
+        return begin_;
+    }
+    Iterator end() {
+        return end_;
+    }
+
     bool has_next() {
         if (cached_) {
             return true;
@@ -287,9 +294,14 @@ public:
 
     void erase(const Key& key, bool first_match_only = false) {
         verify(writable());
+        version_t orig_ver = ver_;
         ver_++;
         if (has_readonly_snapshot()) {
             for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
+                // only remove visible values
+                if (!it->second.valid_at(orig_ver)) {
+                    continue;
+                }
                 assert(key == it->first);
                 it->second.remove(ver_);
                 ssg_->gc_erase_counter++;
@@ -309,9 +321,14 @@ public:
 
     void erase(const Key& key, const Value& value, bool first_match_only = false) {
         verify(writable());
+        version_t orig_ver = ver_;
         ver_++;
         if (has_readonly_snapshot()) {
             for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
+                // only remove visible values
+                if (!it->second.valid_at(orig_ver)) {
+                    continue;
+                }
                 assert(key == it->first);
                 if (value == it->second.val) {
                     it->second.remove(ver_);
@@ -323,16 +340,40 @@ public:
             }
         } else {
             // no body can observe the removed key value pair, so directly erase it
-            for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
+            auto it = ssg_->data.lower_bound(key);
+            while (it != ssg_->data.upper_bound(key)) {
                 assert(key == it->first);
                 if (value == it->second.val) {
-                    it->second.remove(ver_);
-                    ssg_->gc_erase_counter++;
+                    it = ssg_->data.erase(it);
                     if (first_match_only) {
                         break;
                     }
+                } else {
+                    ++it;
                 }
             }
+        }
+    }
+
+    void erase(const range_type& range) {
+        verify(writable());
+        typename std::multimap<Key, versioned_value<Value>>::const_iterator begin = range.begin();
+        typename std::multimap<Key, versioned_value<Value>>::const_iterator end = range.end();
+        version_t orig_ver = ver_;
+        ver_++;
+        if (has_readonly_snapshot()) {
+            auto it = begin;
+            while (it != end) {
+                if (it->second.valid_at(orig_ver)) {
+                    // only remove visible values
+                    it->second.remove(ver_);
+                } else {
+                    ++it;
+                }
+            }
+        } else {
+            // nobody can observe the removed range, so directly erase it
+            ssg_->data.erase(begin, end);
         }
     }
 
