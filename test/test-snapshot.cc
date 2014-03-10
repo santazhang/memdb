@@ -339,14 +339,14 @@ TEST(snapshot, benchmark) {
     multimap<int, string> baseline;
     snapshot_sortedmap<int, string> ssmap;
     Timer timer;
-    Log::debug("insert 10000 elements into multimap");
+    Log::debug("insert 1000000 elements into multimap");
     timer.start();
     for (int i = 0; i < 1000000; i++) {
         insert_into_map(baseline, i, to_string(i));
     }
     timer.stop();
     Log::debug("op/s = %d", int(1000000 / timer.elapsed()));
-    Log::debug("insert 10000 elements into snapshot_sortedmap");
+    Log::debug("insert 1000000 elements into snapshot_sortedmap");
     timer.start();
     for (int i = 0; i < 1000000; i++) {
         insert_into_map(ssmap, i, to_string(i));
