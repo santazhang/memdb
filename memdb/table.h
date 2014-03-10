@@ -3,6 +3,7 @@
 #include <string>
 #include <list>
 #include <unordered_map>
+#include <memory>
 
 #include "value.h"
 #include "row.h"
