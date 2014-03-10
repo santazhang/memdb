@@ -368,9 +368,12 @@ public:
         rows_.erase(smk);
     }
 
-    // TODO more remove functions
      void remove(Row* row, bool do_free = true) {
-         // TODO implement me
+         verify(row->readonly());   // if the row is in this table, it should've been made readonly
+         verify(do_free); // SnapshotTable only allow do_free == true, because there won't be any updates
+         SortedMultiKey key = SortedMultiKey(row->get_key(), schema_);
+         verify(row->schema() == schema_);
+         rows_.erase(key, row);
      }
     // void remove(Cursor cur);
 };

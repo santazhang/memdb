@@ -66,6 +66,87 @@ TEST(snapshot, versioned_query) {
     EXPECT_EQ(range3.count(), 1);
 }
 
+TEST(snapshot, erase_key_value) {
+    snapshot_sortedmap<int, string> data;
+    data.insert(1, "hello");
+    auto range1 = data.all();
+    data.insert(1, "world");
+    auto range2 = data.all();
+    data.erase(1, "world");
+    auto range3 = data.all();
+    Log::debug("v1: %d elements", range1.count());
+    print_range(range1);
+    Log::debug("v2: %d elements", range2.count());
+    print_range(range2);
+    Log::debug("v3: %d elements", range3.count());
+    print_range(range3);
+    EXPECT_EQ(range1.count(), 1);
+    EXPECT_EQ(range2.count(), 2);
+    EXPECT_EQ(range3.count(), 1);
+}
+
+TEST(snapshot, erase_first_match_only) {
+    snapshot_sortedmap<int, string> data;
+    data.insert(1, "hello");
+    auto range1 = data.all();
+    data.insert(1, "world");
+    auto range2 = data.all();
+    bool first_match_only = true;
+    data.erase(1, "world", first_match_only);
+    auto range3 = data.all();
+    Log::debug("v1: %d elements", range1.count());
+    print_range(range1);
+    Log::debug("v2: %d elements", range2.count());
+    print_range(range2);
+    Log::debug("v3: %d elements", range3.count());
+    print_range(range3);
+    EXPECT_EQ(range1.count(), 1);
+    EXPECT_EQ(range2.count(), 2);
+    EXPECT_EQ(range3.count(), 1);
+}
+
+TEST(snapshot, erase_key_value_first_match_only) {
+    {
+        snapshot_sortedmap<int, string> data;
+        data.insert(1, "world");
+        auto range1 = data.all();
+        data.insert(1, "world");
+        auto range2 = data.all();
+        bool first_match_only = true;
+        data.erase(1, "world", first_match_only);
+        auto range3 = data.all();
+        Log::debug("v1: %d elements", range1.count());
+        print_range(range1);
+        Log::debug("v2: %d elements", range2.count());
+        print_range(range2);
+        Log::debug("v3: %d elements", range3.count());
+        print_range(range3);
+        EXPECT_EQ(range1.count(), 1);
+        EXPECT_EQ(range2.count(), 2);
+        EXPECT_EQ(range3.count(), 1);
+    }
+
+    {
+        snapshot_sortedmap<int, string> data;
+        data.insert(1, "world");
+        auto range1 = data.all();
+        data.insert(1, "world");
+        auto range2 = data.all();
+        bool first_match_only = false;
+        data.erase(1, "world", first_match_only);
+        auto range3 = data.all();
+        Log::debug("v1: %d elements", range1.count());
+        print_range(range1);
+        Log::debug("v2: %d elements", range2.count());
+        print_range(range2);
+        Log::debug("v3: %d elements", range3.count());
+        print_range(range3);
+        EXPECT_EQ(range1.count(), 1);
+        EXPECT_EQ(range2.count(), 2);
+        EXPECT_EQ(range3.count(), 0);
+    }
+}
+
 TEST(snapshot, insert_many) {
     map<int, string> m;
     m[1] = "hello";

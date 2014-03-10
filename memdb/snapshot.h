@@ -285,7 +285,7 @@ public:
         }
     }
 
-    void erase(const Key& key) {
+    void erase(const Key& key, bool first_match_only = false) {
         verify(writable());
         ver_++;
         if (has_readonly_snapshot()) {
@@ -293,14 +293,48 @@ public:
                 assert(key == it->first);
                 it->second.remove(ver_);
                 ssg_->gc_erase_counter++;
+                if (first_match_only) {
+                    break;
+                }
             }
         } else {
             // no body can observe the removed keys, so directly erase them
-            ssg_->data.erase(key);
+            if (first_match_only) {
+                ssg_->data.erase(ssg_->data.lower_bound(key));
+            } else {
+                ssg_->data.erase(key);
+            }
         }
     }
 
-    // TODO erase a certain key (like erase based on iterator)
+    void erase(const Key& key, const Value& value, bool first_match_only = false) {
+        verify(writable());
+        ver_++;
+        if (has_readonly_snapshot()) {
+            for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
+                assert(key == it->first);
+                if (value == it->second.val) {
+                    it->second.remove(ver_);
+                    ssg_->gc_erase_counter++;
+                    if (first_match_only) {
+                        break;
+                    }
+                }
+            }
+        } else {
+            // no body can observe the removed key value pair, so directly erase it
+            for (auto it = ssg_->data.lower_bound(key); it != ssg_->data.upper_bound(key); ++it) {
+                assert(key == it->first);
+                if (value == it->second.val) {
+                    it->second.remove(ver_);
+                    ssg_->gc_erase_counter++;
+                    if (first_match_only) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     range_type all() const {
         return range_type(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.end());

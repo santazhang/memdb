@@ -512,3 +512,41 @@ TEST(table, snapshot_insert_and_snapshots) {
     EXPECT_EQ(r1->get_column(0).get_i32(), 1);
     EXPECT_EQ(r1->get_column(1).get_str(), "alice");
 }
+
+TEST(table, snapshot_table_remove) {
+    // the schema will be accessed both by SnapshotTable and Cursors
+    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    SnapshotTable* st = new SnapshotTable(&schema);
+    EXPECT_EQ(st->all().count(), 0);
+
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    Row* r1 = Row::create(&schema, row1);
+    st->insert(r1);
+    EXPECT_EQ(st->all().count(), 1);
+
+    SnapshotTable::Cursor cursor = st->query(r1->get_key());
+
+    map<string, Value> row2;
+    row2["id"] = (i32) 1;
+    row2["name"] = "bob";
+    Row* r2 = Row::create(&schema, row2);
+    st->insert(r2);
+
+    st->remove(r1);
+    EXPECT_EQ(st->all().count(), 1);
+
+    // check snapshot properties
+    EXPECT_EQ(cursor.count(), 1);
+
+    delete st;
+
+    auto row = cursor.next();
+    EXPECT_TRUE(row->readonly());
+    EXPECT_EQ(row, r1);
+    EXPECT_EQ(r1->get_column(0).get_i32(), 1);
+    EXPECT_EQ(r1->get_column(1).get_str(), "alice");
+}
