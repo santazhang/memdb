@@ -173,9 +173,4 @@ UnsortedTable::iterator UnsortedTable::remove(iterator it, bool do_free /* =? */
     }
 }
 
-
-void SnapshotTable::remove(Row* row, bool do_free /* = ? */) {
-    // TODO implement this function!
-}
-
 } // namespace mdb

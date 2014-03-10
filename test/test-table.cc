@@ -447,6 +447,30 @@ TEST(table, create_snapshot_table) {
     st->insert(r1);
 
     SnapshotTable::Cursor cursor = st->query(r1->get_key());
+    EXPECT_EQ(cursor.count(), 1);
+
+    delete st;
+}
+
+TEST(table, snapshot_cannot_inplace_update) {
+    Schema* schema = new Schema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_column("name", Value::STR);
+
+    SnapshotTable* st = new SnapshotTable(schema);
+
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    Row* r1 = Row::create(schema, row1);
+    st->insert(r1);
+
+    SnapshotTable::Cursor cursor = st->query(r1->get_key());
+    EXPECT_EQ(cursor.count(), 1);
+
+    auto row = cursor.next();
+    EXPECT_TRUE(row->readonly());
+
+    // snapshot cannot inplace update
+    // row->update(0, 0);
 
     delete st;
 }

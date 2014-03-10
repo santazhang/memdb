@@ -290,7 +290,8 @@ public:
 
     SnapshotTable(Schema* sch): schema_(sch) {}
     ~SnapshotTable() {
-        delete schema_;
+        // do not delete the schema!
+        // because there might be snapshot copies trying to access the schema data!
     }
 
     const Schema* schema() const {
@@ -364,7 +365,9 @@ public:
     }
 
     // TODO more remove functions
-     void remove(Row* row, bool do_free = true);
+     void remove(Row* row, bool do_free = true) {
+         // TODO implement me
+     }
     // void remove(Cursor cur);
 };
 

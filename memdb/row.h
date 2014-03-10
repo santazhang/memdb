@@ -41,11 +41,12 @@ class Row: public NoCopy {
 
     const Schema* schema_;
     Table* tbl_;
+    bool rdonly_;
 
     // private ctor, factory model
     Row(): fixed_part_(nullptr), kind_(DENSE),
            dense_var_part_(nullptr), dense_var_idx_(nullptr),
-           schema_(nullptr), tbl_(nullptr) {}
+           schema_(nullptr), tbl_(nullptr), rdonly_(false) {}
 
     void update_fixed(const Schema::column_info* col, void* ptr, int len);
 
@@ -55,7 +56,12 @@ public:
     const Schema* schema() const {
         return schema_;
     }
-
+    bool readonly() const {
+        return rdonly_;
+    }
+    void make_readonly() {
+        rdonly_ = true;
+    }
     void make_sparse();
     void set_table(Table* tbl) {
         if (tbl != nullptr) {
