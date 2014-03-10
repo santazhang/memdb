@@ -436,14 +436,16 @@ TEST(table, sorted_multi_key_cmp) {
 }
 
 TEST(table, create_snapshot_table) {
-    Schema* schema = new Schema;
-    schema->add_key_column("id", Value::I32);
-    schema->add_column("name", Value::STR);
+    // the schema will be accessed both by SnapshotTable and Cursors
+    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
 
-    SnapshotTable* st = new SnapshotTable(schema);
+    SnapshotTable* st = new SnapshotTable(&schema);
 
     vector<Value> row1 = { Value((i32) 1), Value("alice") };
-    Row* r1 = Row::create(schema, row1);
+    Row* r1 = Row::create(&schema, row1);
     st->insert(r1);
 
     SnapshotTable::Cursor cursor = st->query(r1->get_key());
@@ -453,14 +455,16 @@ TEST(table, create_snapshot_table) {
 }
 
 TEST(table, snapshot_cannot_update_inplace) {
-    Schema* schema = new Schema;
-    schema->add_key_column("id", Value::I32);
-    schema->add_column("name", Value::STR);
+    // the schema will be accessed both by SnapshotTable and Cursors
+    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
 
-    SnapshotTable* st = new SnapshotTable(schema);
+    SnapshotTable* st = new SnapshotTable(&schema);
 
     vector<Value> row1 = { Value((i32) 1), Value("alice") };
-    Row* r1 = Row::create(schema, row1);
+    Row* r1 = Row::create(&schema, row1);
     st->insert(r1);
 
     SnapshotTable::Cursor cursor = st->query(r1->get_key());
