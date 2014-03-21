@@ -7,6 +7,7 @@
 
 #include "utils.h"
 #include "schema.h"
+#include "locking.h"
 
 namespace mdb {
 
@@ -39,16 +40,22 @@ class Row: public NoCopy {
         std::string* sparse_var_;
     };
 
-    const Schema* schema_;
     Table* tbl_;
-    bool rdonly_;
-
-    // private ctor, factory model
-    Row(): fixed_part_(nullptr), kind_(DENSE),
-           dense_var_part_(nullptr), dense_var_idx_(nullptr),
-           schema_(nullptr), tbl_(nullptr), rdonly_(false) {}
 
     void update_fixed(const Schema::column_info* col, void* ptr, int len);
+
+protected:
+
+    bool rdonly_;
+    const Schema* schema_;
+
+    // hidden ctor, factory model
+    Row(): fixed_part_(nullptr), kind_(DENSE),
+           dense_var_part_(nullptr), dense_var_idx_(nullptr),
+           tbl_(nullptr), rdonly_(false), schema_(nullptr) {}
+
+    // helper function for all the create()
+    static Row* create(Row* raw_row, Schema* schema, const std::vector<const Value*>& values);
 
 public:
     ~Row();
@@ -118,9 +125,72 @@ public:
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::vector<Value>& values);
+};
 
-    // helper function for all the create()
-    static Row* create(Schema* schema, const std::vector<const Value*>& values);
+
+class CorseLockedRow: public Row {
+    RWLock lock;
+public:
+    bool rlock_row_by(lock_owner_t o) {
+        verify(!rdonly_);
+        return lock.rlock_by(o);
+    }
+    bool wlock_row_by(lock_owner_t o) {
+        verify(!rdonly_);
+        return lock.wlock_by(o);
+    }
+    bool unlock_row_by(lock_owner_t o) {
+        verify(!rdonly_);
+        return lock.unlock_by(o);
+    }
+
+    static CorseLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
+    static CorseLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static CorseLockedRow* create(Schema* schema, const std::vector<Value>& values);
+};
+
+
+class FineLockedRow: public Row {
+    RWLock* lock;
+    void init_lock(int n_locks) {
+        lock = new RWLock[n_locks];
+    }
+public:
+    ~FineLockedRow() {
+        delete[] lock;
+    }
+
+    bool rlock_column_by(int column_id, lock_owner_t o) {
+        verify(!rdonly_);
+        return lock[column_id].rlock_by(o);
+    }
+    bool rlock_column_by(const std::string& col_name, lock_owner_t o) {
+        verify(!rdonly_);
+        int column_id = schema_->get_column_id(col_name);
+        return lock[column_id].rlock_by(o);
+    }
+    bool wlock_column_by(int column_id, lock_owner_t o) {
+        verify(!rdonly_);
+        return lock[column_id].wlock_by(o);
+    }
+    bool wlock_column_by(const std::string& col_name, lock_owner_t o) {
+        verify(!rdonly_);
+        int column_id = schema_->get_column_id(col_name);
+        return lock[column_id].wlock_by(o);
+    }
+    bool unlock_column_by(int column_id, lock_owner_t o) {
+        verify(!rdonly_);
+        return lock[column_id].unlock_by(o);
+    }
+    bool unlock_column_by(const std::string& col_name, lock_owner_t o) {
+        verify(!rdonly_);
+        int column_id = schema_->get_column_id(col_name);
+        return lock[column_id].unlock_by(o);
+    }
+
+    static FineLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
+    static FineLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static FineLockedRow* create(Schema* schema, const std::vector<Value>& values);
 };
 
 } // namespace mdb
