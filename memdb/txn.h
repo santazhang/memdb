@@ -10,7 +10,7 @@
 
 namespace mdb {
 
-// foreward declaration
+// forward declaration
 class Row;
 class Table;
 class UnsortedTable;
