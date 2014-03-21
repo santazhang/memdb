@@ -60,6 +60,10 @@ protected:
 public:
     ~Row();
 
+    virtual symbol_t rtti() const {
+        return ROW_BASIC;
+    }
+
     const Schema* schema() const {
         return schema_;
     }
@@ -141,6 +145,11 @@ public:
 class CoarseLockedRow: public Row {
     RWLock lock;
 public:
+
+    virtual symbol_t rtti() const {
+        return ROW_COARSE;
+    }
+
     bool rlock_row_by(lock_owner_t o) {
         verify(!rdonly_);
         return lock.rlock_by(o);
@@ -178,6 +187,10 @@ class FineLockedRow: public Row {
 public:
     ~FineLockedRow() {
         delete[] lock;
+    }
+
+    virtual symbol_t rtti() const {
+        return ROW_FINE;
     }
 
     bool rlock_column_by(int column_id, lock_owner_t o) {

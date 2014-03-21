@@ -21,6 +21,7 @@ public:
     virtual ~Table() {}
     virtual void insert(Row* row) = 0;
     virtual void remove(Row* row, bool do_free = true) = 0;
+    virtual symbol_t rtti() const = 0;
 };
 
 class SortedMultiKey {
@@ -99,6 +100,10 @@ public:
     SortedTable(Schema* schema): schema_(schema) {}
 
     ~SortedTable();
+
+    virtual symbol_t rtti() const {
+        return TBL_SORTED;
+    }
 
     const Schema* schema() const {
         return schema_;
@@ -222,6 +227,10 @@ public:
 
     ~UnsortedTable();
 
+    virtual symbol_t rtti() const {
+        return TBL_UNSORTED;
+    }
+
     const Schema* schema() const {
         return schema_;
     }
@@ -297,6 +306,10 @@ public:
     ~SnapshotTable() {
         // do not delete the schema!
         // because there might be snapshot copies trying to access the schema data!
+    }
+
+    virtual symbol_t rtti() const {
+        return TBL_SNAPSHOT;
     }
 
     SnapshotTable* snapshot() const {

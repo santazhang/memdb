@@ -16,6 +16,25 @@ using base::Enumerator;
 using base::Log;
 using base::insert_into_map;
 
+typedef enum {
+    NONE,
+
+    ROW_BASIC,
+    ROW_COARSE,
+    ROW_FINE,
+
+    TBL_SORTED,
+    TBL_UNSORTED,
+    TBL_SNAPSHOT,
+
+    TXN_UNSAFE,
+    TXN_2PL,
+    TXN_OCC,
+
+    TXN_ABORT,
+    TXN_COMMIT,
+} symbol_t;
+
 uint32_t stringhash32(const void* data, int len);
 
 inline uint32_t stringhash32(const std::string& str) {
