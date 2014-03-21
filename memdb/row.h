@@ -138,7 +138,7 @@ public:
 };
 
 
-class CorseLockedRow: public Row {
+class CoarseLockedRow: public Row {
     RWLock lock;
 public:
     bool rlock_row_by(lock_owner_t o) {
@@ -154,18 +154,18 @@ public:
         return lock.unlock_by(o);
     }
 
-    static CorseLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
-    static CorseLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static CoarseLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
+    static CoarseLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
 
     template <class Container>
-    static CorseLockedRow* create(Schema* schema, const Container& values) {
+    static CoarseLockedRow* create(Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
         std::vector<const Value*> values_ptr;
         values_ptr.reserve(values.size());
         for (auto& it: values) {
             values_ptr.push_back(&it);
         }
-        return (CorseLockedRow * ) Row::create(new CorseLockedRow(), schema, values_ptr);
+        return (CoarseLockedRow * ) Row::create(new CoarseLockedRow(), schema, values_ptr);
     }
 };
 

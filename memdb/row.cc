@@ -291,7 +291,7 @@ Row* Row::create(Row* raw_row, Schema* schema, const std::vector<const Value*>& 
 }
 
 
-CorseLockedRow* CorseLockedRow::create(Schema* schema, const std::map<std::string, Value>& values) {
+CoarseLockedRow* CoarseLockedRow::create(Schema* schema, const std::map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -299,10 +299,10 @@ CorseLockedRow* CorseLockedRow::create(Schema* schema, const std::map<std::strin
         verify(col_id >= 0);
         values_ptr[col_id] = &it.second;
     }
-    return (CorseLockedRow * ) Row::create(new CorseLockedRow(), schema, values_ptr);
+    return (CoarseLockedRow * ) Row::create(new CoarseLockedRow(), schema, values_ptr);
 }
 
-CorseLockedRow* CorseLockedRow::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
+CoarseLockedRow* CoarseLockedRow::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -310,7 +310,7 @@ CorseLockedRow* CorseLockedRow::create(Schema* schema, const std::unordered_map<
         verify(col_id >= 0);
         values_ptr[col_id] = &it.second;
     }
-    return (CorseLockedRow * ) Row::create(new CorseLockedRow(), schema, values_ptr);
+    return (CoarseLockedRow * ) Row::create(new CoarseLockedRow(), schema, values_ptr);
 }
 
 
