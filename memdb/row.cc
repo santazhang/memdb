@@ -234,15 +234,6 @@ Row* Row::create(Schema* schema, const std::unordered_map<std::string, Value>& v
     return Row::create(new Row(), schema, values_ptr);
 }
 
-Row* Row::create(Schema* schema, const std::vector<Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr;
-    values_ptr.reserve(values.size());
-    for (auto& it: values) {
-        values_ptr.push_back(&it);
-    }
-    return Row::create(new Row(), schema, values_ptr);
-}
 
 Row* Row::create(Row* raw_row, Schema* schema, const std::vector<const Value*>& values) {
     Row* row = raw_row;
@@ -322,16 +313,6 @@ CorseLockedRow* CorseLockedRow::create(Schema* schema, const std::unordered_map<
     return (CorseLockedRow * ) Row::create(new CorseLockedRow(), schema, values_ptr);
 }
 
-CorseLockedRow* CorseLockedRow::create(Schema* schema, const std::vector<Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr;
-    values_ptr.reserve(values.size());
-    for (auto& it: values) {
-        values_ptr.push_back(&it);
-    }
-    return (CorseLockedRow * ) Row::create(new CorseLockedRow(), schema, values_ptr);
-}
-
 
 FineLockedRow* FineLockedRow::create(Schema* schema, const std::map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
@@ -353,18 +334,6 @@ FineLockedRow* FineLockedRow::create(Schema* schema, const std::unordered_map<st
         int col_id = schema->get_column_id(it.first);
         verify(col_id >= 0);
         values_ptr[col_id] = &it.second;
-    }
-    FineLockedRow* raw_row = new FineLockedRow();
-    raw_row->init_lock(schema->columns_count());
-    return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
-}
-
-FineLockedRow* FineLockedRow::create(Schema* schema, const std::vector<Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr;
-    values_ptr.reserve(values.size());
-    for (auto& it: values) {
-        values_ptr.push_back(&it);
     }
     FineLockedRow* raw_row = new FineLockedRow();
     raw_row->init_lock(schema->columns_count());

@@ -124,7 +124,17 @@ public:
 
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
-    static Row* create(Schema* schema, const std::vector<Value>& values);
+
+    template <class Container>
+    static Row* create(Schema* schema, const Container& values) {
+        verify(values.size() == schema->columns_count());
+        std::vector<const Value*> values_ptr;
+        values_ptr.reserve(values.size());
+        for (auto& it: values) {
+            values_ptr.push_back(&it);
+        }
+        return Row::create(new Row(), schema, values_ptr);
+    }
 };
 
 
@@ -146,7 +156,17 @@ public:
 
     static CorseLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
     static CorseLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
-    static CorseLockedRow* create(Schema* schema, const std::vector<Value>& values);
+
+    template <class Container>
+    static CorseLockedRow* create(Schema* schema, const Container& values) {
+        verify(values.size() == schema->columns_count());
+        std::vector<const Value*> values_ptr;
+        values_ptr.reserve(values.size());
+        for (auto& it: values) {
+            values_ptr.push_back(&it);
+        }
+        return (CorseLockedRow * ) Row::create(new CorseLockedRow(), schema, values_ptr);
+    }
 };
 
 
@@ -190,7 +210,19 @@ public:
 
     static FineLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
     static FineLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
-    static FineLockedRow* create(Schema* schema, const std::vector<Value>& values);
+
+    template <class Container>
+    static FineLockedRow* create(Schema* schema, const Container& values) {
+        verify(values.size() == schema->columns_count());
+        std::vector<const Value*> values_ptr;
+        values_ptr.reserve(values.size());
+        for (auto& it: values) {
+            values_ptr.push_back(&it);
+        }
+        FineLockedRow* raw_row = new FineLockedRow();
+        raw_row->init_lock(schema->columns_count());
+        return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
+    }
 };
 
 } // namespace mdb
