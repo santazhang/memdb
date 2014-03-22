@@ -21,6 +21,35 @@ class TxnMgr;
 
 typedef i64 txn_id_t;
 
+class ResultSet {
+    int* refcnt_;
+    Enumerator<const Row*>* rows_;
+
+    void decr_ref() {
+        (*refcnt_)--;
+        if (*refcnt_ == 0) {
+            delete refcnt_;
+            delete rows_;
+        }
+    }
+public:
+    ResultSet(Enumerator<const Row*>* rows): refcnt_(new int(1)), rows_(rows) {}
+    ResultSet(const ResultSet& o): refcnt_(o.refcnt_), rows_(o.rows_) {
+        (*refcnt_)++;
+    }
+    const ResultSet& operator =(const ResultSet& o) {
+        if (this != &o) {
+            decr_ref();
+            refcnt_ = o.refcnt_;
+            rows_ = o.rows_;
+            (*refcnt_)++;
+        }
+        return *this;
+    }
+    ~ResultSet() {
+        decr_ref();
+    }
+};
 
 class Txn: public NoCopy {
 protected:
@@ -67,6 +96,11 @@ public:
         }
         return true;
     }
+
+    ResultSet query(Table* tbl, const Value& kv) {
+        return this->query(tbl, kv.get_blob());
+    }
+    virtual ResultSet query(Table* tbl, const MultiBlob& mb) = 0;
 };
 
 
@@ -111,6 +145,8 @@ public:
     virtual bool write_column(Row* row, int col_id, const Value& value);
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
+
+    ResultSet query(Table* tbl, const MultiBlob& mb);
 };
 
 class TxnMgrUnsafe: public TxnMgr {
@@ -150,6 +186,8 @@ public:
     virtual bool write_column(Row* row, int col_id, const Value& value);
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
+
+    ResultSet query(Table* tbl, const MultiBlob& mb);
 };
 
 class TxnMgr2PL: public TxnMgr {

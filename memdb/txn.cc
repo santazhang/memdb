@@ -74,6 +74,26 @@ bool TxnUnsafe::remove_row(Table* tbl, Row* row) {
     return true;
 }
 
+ResultSet TxnUnsafe::query(Table* tbl, const MultiBlob& mb) {
+    // always sendback query result from raw table
+    if (tbl->rtti() == TBL_UNSORTED) {
+        UnsortedTable* t = (UnsortedTable *) tbl;
+        UnsortedTable::Cursor* cursor = new UnsortedTable::Cursor(t->query(mb));
+        return ResultSet(cursor);
+    } else if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query(mb));
+        return ResultSet(cursor);
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query(mb));
+        return ResultSet(cursor);
+    } else {
+        verify(tbl->rtti() == TBL_UNSORTED || tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+        return ResultSet(nullptr);
+    }
+}
+
 
 Txn2PL::~Txn2PL() {
     relese_resource();
@@ -254,6 +274,26 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
     updates_.erase(row);
     removes_.insert(make_pair(tbl, row));
     return true;
+}
+
+ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
+    // TODO combine query result in staging area and real table data
+    if (tbl->rtti() == TBL_UNSORTED) {
+        UnsortedTable* t = (UnsortedTable *) tbl;
+        UnsortedTable::Cursor* cursor = new UnsortedTable::Cursor(t->query(mb));
+        return ResultSet(cursor);
+    } else if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query(mb));
+        return ResultSet(cursor);
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query(mb));
+        return ResultSet(cursor);
+    } else {
+        verify(tbl->rtti() == TBL_UNSORTED || tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+        return ResultSet(nullptr);
+    }
 }
 
 

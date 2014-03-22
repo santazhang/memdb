@@ -37,11 +37,12 @@ static void benchmark_kv(TxnMgr* mgr) {
     const int batch_size = 10 * 1000;
     int n_batches = 0;
     timer.start();
+    Rand rnd;
     for (;;) {
         for (int i = 0; i < batch_size; i++) {
             txn_id_t txnid = txn_counter.next();
             Txn* txn = mgr->start(txnid);
-            // TODO
+            ResultSet rs = txn->query(table, Value(i32(rnd.next(0, n_populate))));
             txn->commit();
         }
         n_batches++;

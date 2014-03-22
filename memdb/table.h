@@ -17,8 +17,17 @@ namespace mdb {
 
 // Tables are NoCopy, because they might maintain a pointer to schema, which should not be shared
 class Table: public NoCopy {
+protected:
+    const Schema* schema_;
+
 public:
+    Table(const Schema* schema): schema_(schema) {}
     virtual ~Table() {}
+
+    const Schema* schema() const {
+        return schema_;
+    }
+
     virtual void insert(Row* row) = 0;
     virtual void remove(Row* row, bool do_free = true) = 0;
     virtual symbol_t rtti() const = 0;
@@ -97,16 +106,12 @@ public:
         }
     };
 
-    SortedTable(Schema* schema): schema_(schema) {}
+    SortedTable(const Schema* schema): Table(schema) {}
 
     ~SortedTable();
 
     virtual symbol_t rtti() const {
         return TBL_SORTED;
-    }
-
-    const Schema* schema() const {
-        return schema_;
     }
 
     void insert(Row* row) {
@@ -182,8 +187,6 @@ private:
 
     iterator remove(iterator it, bool do_free = true);
 
-    const Schema* schema_;
-
     // indexed by key values
     std::multimap<SortedMultiKey, Row*> rows_;
 };
@@ -223,16 +226,12 @@ public:
         }
     };
 
-    UnsortedTable(Schema* schema): schema_(schema) {}
+    UnsortedTable(const Schema* schema): Table(schema) {}
 
     ~UnsortedTable();
 
     virtual symbol_t rtti() const {
         return TBL_UNSORTED;
-    }
-
-    const Schema* schema() const {
-        return schema_;
     }
 
     void insert(Row* row) {
@@ -265,16 +264,12 @@ private:
 
     iterator remove(iterator it, bool do_free = true);
 
-    const Schema* schema_;
-
     // indexed by key values
     std::unordered_multimap<MultiBlob, Row*, MultiBlob::hash> rows_;
 };
 
 
 class SnapshotTable: public Table {
-
-    Schema* schema_;
 
     // indexed by key values
     typedef snapshot_sortedmap<SortedMultiKey, std::shared_ptr<const Row>> table_type;
@@ -302,7 +297,7 @@ public:
         }
     };
 
-    SnapshotTable(Schema* sch): schema_(sch) {}
+    SnapshotTable(const Schema* sch): Table(sch) {}
     ~SnapshotTable() {
         // do not delete the schema!
         // because there might be snapshot copies trying to access the schema data!
@@ -316,10 +311,6 @@ public:
         SnapshotTable* copy = new SnapshotTable(schema_);
         copy->rows_ = rows_.snapshot();
         return copy;
-    }
-
-    const Schema* schema() const {
-        return schema_;
     }
 
     void insert(Row* row) {
