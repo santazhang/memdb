@@ -15,6 +15,7 @@ using base::RefCounted;
 using base::Enumerator;
 using base::Log;
 using base::insert_into_map;
+using base::format_decimal;
 
 typedef enum {
     NONE,
