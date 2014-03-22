@@ -80,6 +80,9 @@ public:
         }
         tbl_ = tbl;
     }
+    const Table* get_table() const {
+        return tbl_;
+    }
 
     Value get_column(int column_id) const;
     Value get_column(const std::string& col_name) const {

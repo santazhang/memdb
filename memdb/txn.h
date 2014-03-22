@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 
 #include "utils.h"
 #include "value.h"
@@ -116,6 +117,45 @@ class TxnMgrUnsafe: public TxnMgr {
 public:
     virtual Txn* start(txn_id_t txnid) {
         return new TxnUnsafe(this, txnid);
+    }
+};
+
+
+class Txn2PL: public Txn {
+    int outcome_;
+    std::unordered_map<Row*, std::vector<std::pair<int, Value>>> updates_;
+    std::set<std::pair<Table*, Row*>> inserts_;
+    std::set<std::pair<Table*, Row*>> removes_;
+    std::set<std::pair<Row*, int>> locks_;
+
+    void relese_resource();
+
+    bool debug_check_row_valid(Row* row) const {
+        for (auto& it : removes_) {
+            if (it.second == row) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+public:
+
+    Txn2PL(const TxnMgr* mgr, txn_id_t txnid): Txn(mgr, txnid), outcome_(symbol_t::NONE) {}
+    ~Txn2PL();
+
+    void abort();
+    bool commit();
+    virtual bool read_column(Row* row, int col_id, Value* value);
+    virtual bool write_column(Row* row, int col_id, const Value& value);
+    virtual bool insert_row(Table* tbl, Row* row);
+    virtual bool remove_row(Table* tbl, Row* row);
+};
+
+class TxnMgr2PL: public TxnMgr {
+public:
+    virtual Txn* start(txn_id_t txnid) {
+        return new Txn2PL(this, txnid);
     }
 };
 
