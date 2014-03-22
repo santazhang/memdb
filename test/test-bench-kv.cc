@@ -58,7 +58,7 @@ static void benchmark_kv(TxnMgr* mgr, symbol_t table_type, symbol_t row_type) {
             Txn* txn = mgr->start(txnid);
             ResultSet rs = txn->query(table, Value(i32(rnd.next(0, n_populate))));
             while (rs) {
-                Row* row = const_cast<Row*>(rs.next());
+                Row* row = rs.next();
                 //row->update(1, Value("dummy 2"));
                 txn->write_column(row, 1, Value("dummy 2"));
             }
