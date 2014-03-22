@@ -21,7 +21,7 @@ class TxnMgr;
 
 typedef i64 txn_id_t;
 
-class ResultSet {
+class ResultSet: public Enumerator<const Row*> {
     int* refcnt_;
     Enumerator<const Row*>* rows_;
 
@@ -48,6 +48,13 @@ public:
     }
     ~ResultSet() {
         decr_ref();
+    }
+
+    bool has_next() {
+        return rows_->has_next();
+    }
+    const Row* next() {
+        return rows_->next();
     }
 };
 

@@ -14,19 +14,33 @@ static void report_qps(const char* action, int n_ops, double duration) {
     Log::info("%s: %d ops, took %.2lf sec, qps=%s", action, n_ops, duration, format_decimal(n_ops / duration).c_str());
 }
 
-static void benchmark_kv(TxnMgr* mgr) {
+static void benchmark_kv(TxnMgr* mgr, symbol_t table_type, symbol_t row_type) {
     Schema* schema = new Schema;
     schema->add_key_column("key", Value::I32);
     schema->add_column("value", Value::STR);
 
-    Table* table = new SortedTable(schema);
+    Table* table = nullptr;
+    if (table_type == TBL_UNSORTED) {
+        table = new UnsortedTable(schema);
+    } else if (table_type == TBL_SORTED) {
+        table = new SortedTable(schema);
+    } else if (table_type == TBL_SNAPSHOT) {
+        table = new SnapshotTable(schema);
+    }
 
     int n_populate = 100 * 1000;
     Timer timer;
     timer.start();
     for (i32 i = 0; i < n_populate; i++) {
         array<Value, 2> row_data = { { Value(i), Value("dummy") } };
-        Row* row = Row::create(schema, row_data);
+        Row* row = nullptr;
+        if (row_type == ROW_BASIC) {
+            row = Row::create(schema, row_data);
+        } else if (row_type == ROW_COARSE) {
+            row = CoarseLockedRow::create(schema, row_data);
+        } else if (row_type == ROW_FINE) {
+            row = FineLockedRow::create(schema, row_data);
+        }
         table->insert(row);
     }
     timer.stop();
@@ -43,6 +57,11 @@ static void benchmark_kv(TxnMgr* mgr) {
             txn_id_t txnid = txn_counter.next();
             Txn* txn = mgr->start(txnid);
             ResultSet rs = txn->query(table, Value(i32(rnd.next(0, n_populate))));
+            while (rs) {
+                Row* row = const_cast<Row*>(rs.next());
+                //row->update(1, Value("dummy 2"));
+                txn->write_column(row, 1, Value("dummy 2"));
+            }
             txn->commit();
         }
         n_batches++;
@@ -59,10 +78,10 @@ static void benchmark_kv(TxnMgr* mgr) {
 
 TEST(benchmark, kv_unsafe) {
     TxnMgrUnsafe mgr;
-    benchmark_kv(&mgr);
+    benchmark_kv(&mgr, TBL_UNSORTED, ROW_BASIC);
 }
 
 TEST(benchmark, kv_2pl) {
     TxnMgr2PL mgr;
-    benchmark_kv(&mgr);
+    benchmark_kv(&mgr, TBL_UNSORTED, ROW_FINE);
 }
