@@ -57,7 +57,7 @@ public:
         bool ret = false;
         if (wlocked_ && o == w_) {
             wlocked_ = false;
-            assert(r_.find(o) == r.end());
+            assert(r_.find(o) == r_.end());
             ret = true;
         }
         if (r_.erase(o) != 0) {

@@ -132,7 +132,7 @@ bool Txn2PL::commit() {
 }
 
 bool Txn2PL::read_column(Row* row, int col_id, Value* value) {
-    assert(staging_->debug_check_row_valid(row));
+    assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
     if (row->get_table() == nullptr) {
@@ -175,7 +175,7 @@ bool Txn2PL::read_column(Row* row, int col_id, Value* value) {
 }
 
 bool Txn2PL::write_column(Row* row, int col_id, const Value& value) {
-    assert(staging_->debug_check_row_valid(row));
+    assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
     if (row->get_table() == nullptr) {
@@ -225,7 +225,7 @@ bool Txn2PL::insert_row(Table* tbl, Row* row) {
 }
 
 bool Txn2PL::remove_row(Table* tbl, Row* row) {
-    assert(staging_->debug_check_row_valid(row));
+    assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
     if (inserts_.find(make_pair(tbl, row)) == inserts_.end()) {
         // lock whole row, only if row is on real table
