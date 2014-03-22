@@ -62,7 +62,7 @@ class SortedTable: public Table {
 
 public:
 
-    class Cursor {
+    class Cursor: public Enumerator<const Row*> {
         iterator begin_, end_, next_;
         int count_;
     public:
@@ -74,10 +74,10 @@ public:
         const iterator& end() const {
             return end_;
         }
-        bool has_next() const {
+        bool has_next() {
             return next_ != end_;
         }
-        operator bool () const {
+        operator bool () {
             return has_next();
         }
         Row* next() {
@@ -194,16 +194,16 @@ class UnsortedTable: public Table {
 
 public:
 
-    class Cursor {
+    class Cursor: public Enumerator<const Row*> {
         iterator begin_, end_, next_;
         int count_;
     public:
         Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin), count_(-1) {}
 
-        bool has_next() const {
+        bool has_next() {
             return next_ != end_;
         }
-        operator bool () const {
+        operator bool () {
             return has_next();
         }
         Row* next() {
