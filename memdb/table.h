@@ -275,12 +275,6 @@ class SnapshotTable: public Table {
     typedef snapshot_sortedmap<SortedMultiKey, std::shared_ptr<const Row>> table_type;
     table_type rows_;
 
-    int* schema_refcnt_;
-
-    SnapshotTable(const Schema* sch, int* sch_refcnt): Table(sch), schema_refcnt_(sch_refcnt) {
-        (*schema_refcnt_)++;
-    }
-
 public:
 
     class Cursor: public Enumerator<const Row*> {
@@ -303,13 +297,10 @@ public:
         }
     };
 
-    SnapshotTable(const Schema* sch): Table(sch), schema_refcnt_(new int(1)) {}
+    SnapshotTable(const Schema* sch): Table(sch) {}
     ~SnapshotTable() {
-        (*schema_refcnt_)--;
-        if ((*schema_refcnt_) == 0) {
-            delete schema_refcnt_;
-            delete schema_;
-        }
+        // do not delete the schema!
+        // because there might be snapshot copies trying to access the schema data!
     }
 
     virtual symbol_t rtti() const {
@@ -317,7 +308,7 @@ public:
     }
 
     SnapshotTable* snapshot() const {
-        SnapshotTable* copy = new SnapshotTable(schema_, schema_refcnt_);
+        SnapshotTable* copy = new SnapshotTable(schema_);
         copy->rows_ = rows_.snapshot();
         return copy;
     }
