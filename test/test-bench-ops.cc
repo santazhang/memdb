@@ -35,6 +35,7 @@ TEST(bench, table_insert) {
         n, timer.elapsed(), n / timer.elapsed());
 
     delete ut;
+    delete schema;
 }
 
 TEST(bench, table_insert_sorted) {
@@ -65,6 +66,7 @@ TEST(bench, table_insert_sorted) {
         n, timer.elapsed(), n / timer.elapsed());
 
     delete st;
+    delete schema;
 }
 
 TEST(bench, table_insert_snapshot) {
@@ -95,6 +97,7 @@ TEST(bench, table_insert_snapshot) {
         n, timer.elapsed(), n / timer.elapsed());
 
     delete st;
+    delete schema;
 }
 
 TEST(bench, stringhash32) {

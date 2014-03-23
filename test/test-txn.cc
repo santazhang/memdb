@@ -47,6 +47,7 @@ TEST(txn, basic_op_unsafe) {
     delete txn4;
 
     delete student_tbl;
+    delete schema;
 }
 
 
@@ -91,4 +92,5 @@ TEST(txn, basic_op_2pl) {
     delete txn4;
 
     delete student_tbl;
+    delete schema;
 }

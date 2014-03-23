@@ -75,6 +75,7 @@ static void benchmark_kv(TxnMgr* mgr, symbol_t table_type, symbol_t row_type) {
     report_qps("update rows", n_update, timer.elapsed());
 
     delete table;
+    delete schema;
 }
 
 TEST(benchmark, kv_unsafe) {
