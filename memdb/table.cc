@@ -79,7 +79,6 @@ SortedTable::~SortedTable() {
     for (auto& it: rows_) {
         delete it.second;
     }
-    delete schema_;
 }
 
 void SortedTable::clear() {
@@ -132,7 +131,6 @@ UnsortedTable::~UnsortedTable() {
     for (auto& it: rows_) {
         delete it.second;
     }
-    delete schema_;
 }
 
 void UnsortedTable::clear() {

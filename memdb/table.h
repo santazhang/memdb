@@ -298,10 +298,6 @@ public:
     };
 
     SnapshotTable(const Schema* sch): Table(sch) {}
-    ~SnapshotTable() {
-        // do not delete the schema!
-        // because there might be snapshot copies trying to access the schema data!
-    }
 
     virtual symbol_t rtti() const {
         return TBL_SNAPSHOT;

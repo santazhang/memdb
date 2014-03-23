@@ -110,6 +110,7 @@ TEST(table, create) {
     ut->clear();
 
     delete ut;
+    delete schema;
 }
 
 
@@ -155,6 +156,7 @@ TEST(table, compound_key) {
     ut->clear();
 
     delete ut;
+    delete schema;
 }
 
 TEST(table, sorted_table_create) {
@@ -229,6 +231,7 @@ TEST(table, sorted_table_create) {
     EXPECT_EQ(st->all().count(), 0);
 
     delete st;
+    delete schema;
 }
 
 TEST(table, sorted_table_queries) {
@@ -285,6 +288,7 @@ TEST(table, sorted_table_queries) {
     print_table(st);
 
     delete st;
+    delete schema;
 }
 
 TEST(table, sorted_multi_key_cmp) {
@@ -437,7 +441,6 @@ TEST(table, sorted_multi_key_cmp) {
 
 TEST(table, create_snapshot_table) {
     // the schema will be accessed both by SnapshotTable and Cursors
-    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
     Schema schema;
     schema.add_key_column("id", Value::I32);
     schema.add_column("name", Value::STR);
@@ -456,7 +459,6 @@ TEST(table, create_snapshot_table) {
 
 TEST(table, snapshot_cannot_update_inplace) {
     // the schema will be accessed both by SnapshotTable and Cursors
-    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
     Schema schema;
     schema.add_key_column("id", Value::I32);
     schema.add_column("name", Value::STR);
@@ -481,7 +483,6 @@ TEST(table, snapshot_cannot_update_inplace) {
 
 TEST(table, snapshot_insert_and_snapshots) {
     // the schema will be accessed both by SnapshotTable and Cursors
-    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
     Schema schema;
     schema.add_key_column("id", Value::I32);
     schema.add_column("name", Value::STR);
@@ -519,7 +520,6 @@ TEST(table, snapshot_insert_and_snapshots) {
 
 TEST(table, snapshot_table_remove) {
     // the schema will be accessed both by SnapshotTable and Cursors
-    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
     Schema schema;
     schema.add_key_column("id", Value::I32);
     schema.add_column("name", Value::STR);
@@ -558,7 +558,6 @@ TEST(table, snapshot_table_remove) {
 
 TEST(table, snapshot_table_remove_range) {
     // the schema will be accessed both by SnapshotTable and Cursors
-    // and SnapshotTable will not delete schema, so it's ok to leave it on stack
     Schema schema;
     schema.add_key_column("id", Value::I32);
     schema.add_column("name", Value::STR);
