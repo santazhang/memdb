@@ -84,8 +84,16 @@ public:
         int count_;
         bool reverse_;
     public:
-        Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin), count_(-1), reverse_(false) {}
-        Cursor(const reverse_iterator& begin, const reverse_iterator& end): r_begin_(begin), r_end_(end), r_next_(begin), count_(-1), reverse_(true) {}
+        Cursor(const iterator& begin, const iterator& end): count_(-1), reverse_(false) {
+            begin_ = begin;
+            end_ = end;
+            next_ = begin;
+        }
+        Cursor(const reverse_iterator& begin, const reverse_iterator& end): count_(-1), reverse_(true) {
+            r_begin_ = begin;
+            r_end_ = end;
+            r_next_ = begin;
+        }
 
         const iterator& begin() const {
             return begin_;
