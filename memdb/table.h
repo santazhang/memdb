@@ -68,14 +68,24 @@ public:
 
 class SortedTable: public Table {
     typedef std::multimap<SortedMultiKey, Row*>::const_iterator iterator;
+    typedef std::multimap<SortedMultiKey, Row*>::const_reverse_iterator reverse_iterator;
 
 public:
 
     class Cursor: public Enumerator<const Row*> {
-        iterator begin_, end_, next_;
+        union {
+            struct {
+                iterator begin_, end_, next_;
+            };
+            struct {
+                reverse_iterator r_begin_, r_end_, r_next_;
+            };
+        };
         int count_;
+        bool reverse_;
     public:
-        Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin), count_(-1) {}
+        Cursor(const iterator& begin, const iterator& end): begin_(begin), end_(end), next_(begin), count_(-1), reverse_(false) {}
+        Cursor(const reverse_iterator& begin, const reverse_iterator& end): r_begin_(begin), r_end_(end), r_next_(begin), count_(-1), reverse_(true) {}
 
         const iterator& begin() const {
             return begin_;
@@ -83,23 +93,46 @@ public:
         const iterator& end() const {
             return end_;
         }
+        const reverse_iterator& rbegin() const {
+            return r_begin_;
+        }
+        const reverse_iterator& rend() const {
+            return r_end_;
+        }
         bool has_next() {
-            return next_ != end_;
+            if (reverse_) {
+                return r_next_ != r_end_;
+            } else {
+                return next_ != end_;
+            }
         }
         operator bool () {
             return has_next();
         }
         Row* next() {
-            verify(next_ != end_);
-            Row* row = next_->second;
-            ++next_;
+            Row* row = nullptr;
+            if (reverse_) {
+                verify(r_next_ != r_end_);
+                row = r_next_->second;
+                ++r_next_;
+            } else {
+                verify(next_ != end_);
+                row = next_->second;
+                ++next_;
+            }
             return row;
         }
         int count() {
             if (count_ < 0) {
                 count_ = 0;
-                for (auto it = begin_; it != end_; ++it) {
-                    count_++;
+                if (reverse_) {
+                    for (auto it = r_begin_; it != r_end_; ++it) {
+                        count_++;
+                    }
+                } else {
+                    for (auto it = begin_; it != end_; ++it) {
+                        count_++;
+                    }
                 }
             }
             return count_;
@@ -132,43 +165,59 @@ public:
         return Cursor(range.first, range.second);
     }
 
-    Cursor query_lt(const Value& kv) {
-        return query_lt(kv.get_blob());
+    Cursor query_lt(const Value& kv, bool order_desc = false) {
+        return query_lt(kv.get_blob(), order_desc);
     }
-    Cursor query_lt(const MultiBlob& mb) {
-        return query_lt(SortedMultiKey(mb, schema_));
+    Cursor query_lt(const MultiBlob& mb, bool order_desc = false) {
+        return query_lt(SortedMultiKey(mb, schema_), order_desc);
     }
-    Cursor query_lt(const SortedMultiKey& smk) {
+    Cursor query_lt(const SortedMultiKey& smk, bool order_desc = false) {
         auto bound = rows_.lower_bound(smk);
-        return Cursor(rows_.begin(), bound);
+        if (order_desc) {
+            return Cursor(reverse_iterator(bound), rows_.rend());
+        } else {
+            return Cursor(rows_.begin(), bound);
+        }
     }
 
-    Cursor query_gt(const Value& kv) {
-        return query_gt(kv.get_blob());
+    Cursor query_gt(const Value& kv, bool order_desc = false) {
+        return query_gt(kv.get_blob(), order_desc);
     }
-    Cursor query_gt(const MultiBlob& mb) {
-        return query_gt(SortedMultiKey(mb, schema_));
+    Cursor query_gt(const MultiBlob& mb, bool order_desc = false) {
+        return query_gt(SortedMultiKey(mb, schema_), order_desc);
     }
-    Cursor query_gt(const SortedMultiKey& smk) {
+    Cursor query_gt(const SortedMultiKey& smk, bool order_desc = false) {
         auto bound = rows_.upper_bound(smk);
-        return Cursor(bound, rows_.end());
+        if (order_desc) {
+            return Cursor(rows_.rbegin(), reverse_iterator(bound));
+        } else {
+            return Cursor(bound, rows_.end());
+        }
     }
 
-    Cursor query_in(const Value& low, const Value& high) {
-        return query_in(low.get_blob(), high.get_blob());
+    Cursor query_in(const Value& low, const Value& high, bool order_desc = false) {
+        return query_in(low.get_blob(), high.get_blob(), order_desc);
     }
-    Cursor query_in(const MultiBlob& low, const MultiBlob& high) {
-        return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_));
+    Cursor query_in(const MultiBlob& low, const MultiBlob& high, bool order_desc = false) {
+        return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_), order_desc);
     }
-    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high) {
+    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high, bool order_desc = false) {
         verify(low < high);
         auto low_bound = rows_.upper_bound(low);
         auto high_bound = rows_.lower_bound(high);
-        return Cursor(low_bound, high_bound);
+        if (order_desc) {
+            return Cursor(reverse_iterator(high_bound), reverse_iterator(low_bound));
+        } else {
+            return Cursor(low_bound, high_bound);
+        }
     }
 
-    Cursor all() const {
-        return Cursor(std::begin(rows_), std::end(rows_));
+    Cursor all(bool order_desc = false) const {
+        if (order_desc) {
+            return Cursor(rows_.rbegin(), rows_.rend());
+        } else {
+            return Cursor(std::begin(rows_), std::end(rows_));
+        }
     }
 
     void clear();

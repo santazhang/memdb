@@ -274,14 +274,38 @@ TEST(table, sorted_table_queries) {
     Log::debug("full table:");
     print_table(st);
 
+    Log::debug("full table (reverse):");
+    print_result(st->schema(), st->all(true));
+
     Log::debug("key < 2:");
     print_result(st->schema(), st->query_lt(Value((i32) 2)));
+
+    Log::debug("key < 2 (reverse order):");
+    print_result(st->schema(), st->query_lt(Value((i32) 2), true));
+
+    Log::debug("key < 3:");
+    print_result(st->schema(), st->query_lt(Value((i32) 3)));
+
+    Log::debug("key < 3 (reverse order):");
+    print_result(st->schema(), st->query_lt(Value((i32) 3), true));
 
     Log::debug("key > 2:");
     print_result(st->schema(), st->query_gt(Value((i32) 2)));
 
+    Log::debug("key > 2 (reverse order):");
+    print_result(st->schema(), st->query_gt(Value((i32) 2), true));
+
+    Log::debug("key > 1:");
+    print_result(st->schema(), st->query_gt(Value((i32) 1)));
+
+    Log::debug("key > 1 (reverse order):");
+    print_result(st->schema(), st->query_gt(Value((i32) 1), true));
+
     Log::debug("1 < key < 3:");
     print_result(st->schema(), st->query_in(Value((i32) 1), Value((i32) 3)));
+
+    Log::debug("1 < key < 3 (reverse order):");
+    print_result(st->schema(), st->query_in(Value((i32) 1), Value((i32) 3), true));
 
     Log::debug("remove 1 < key < 3:");
     st->remove(st->query_in(Value((i32) 1), Value((i32) 3)));
