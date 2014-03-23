@@ -73,14 +73,8 @@ class SortedTable: public Table {
 public:
 
     class Cursor: public Enumerator<const Row*> {
-        union {
-            struct {
-                iterator begin_, end_, next_;
-            };
-            struct {
-                reverse_iterator r_begin_, r_end_, r_next_;
-            };
-        };
+        iterator begin_, end_, next_;
+        reverse_iterator r_begin_, r_end_, r_next_;
         int count_;
         bool reverse_;
     public:
