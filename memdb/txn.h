@@ -7,12 +7,11 @@
 
 #include "utils.h"
 #include "value.h"
-
+#include "row.h"
 
 namespace mdb {
 
 // forward declaration
-class Row;
 class Table;
 class UnsortedTable;
 class SortedTable;
@@ -163,12 +162,24 @@ public:
     }
 };
 
+class TableRowPairLess {
+public:
+    bool operator() (const std::pair<Table*, Row*>& a, const std::pair<Table*, Row*>& b) {
+        if (a.first != b.first) {
+            return a.first < b.first;
+        } else {
+            return (*a.second) < (*b.second);
+        }
+    }
+};
+
+typedef std::set<std::pair<Table*, Row*>, TableRowPairLess> staging_table_row;
 
 class Txn2PL: public Txn {
     int outcome_;
     std::unordered_map<Row*, std::vector<std::pair<int, Value>>> updates_;
-    std::set<std::pair<Table*, Row*>> inserts_;
-    std::set<std::pair<Table*, Row*>> removes_;
+    staging_table_row inserts_;
+    staging_table_row removes_;
     std::set<std::pair<Row*, int>> locks_;
 
     void relese_resource();

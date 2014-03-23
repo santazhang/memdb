@@ -130,6 +130,39 @@ TEST(row, update_compound_key) {
     delete schema;
 }
 
+TEST(row, compare) {
+    Schema* schema = new Schema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_key_column("name", Value::STR);
+
+    vector<Value> row1 = { Value(i32(1)), Value("alice") };
+    Row* r1 = Row::create(schema, row1);
+
+    vector<Value> row2 = { Value(i32(1)), Value("alice") };
+    Row* r2 = Row::create(schema, row1);
+
+    EXPECT_FALSE(*r1 < *r2);
+    EXPECT_FALSE(*r1 > *r2);
+    EXPECT_FALSE(*r1 != *r2);
+    EXPECT_TRUE(*r1 == *r2);
+    EXPECT_TRUE(*r1 >= *r2);
+    EXPECT_TRUE(*r1 <= *r2);
+
+    r1->update(1, Value("bob"));
+
+    EXPECT_FALSE(*r1 < *r2);
+    EXPECT_TRUE(*r1 > *r2);
+    EXPECT_TRUE(*r1 != *r2);
+    EXPECT_FALSE(*r1 == *r2);
+    EXPECT_TRUE(*r1 >= *r2);
+    EXPECT_FALSE(*r1 <= *r2);
+
+    delete r1;
+    delete r2;
+
+    delete schema;
+}
+
 TEST(locked_row, coarse_locked_row) {
     Schema* schema = new Schema;
     schema->add_column("id", Value::I32);

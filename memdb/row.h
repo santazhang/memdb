@@ -129,6 +129,29 @@ public:
         this->update(schema_->get_column_id(col_name), v);
     }
 
+    // compare based on keys
+    // must have same schema!
+    int compare(const Row& another) const;
+
+    bool operator ==(const Row& o) const {
+        return compare(o) == 0;
+    }
+    bool operator !=(const Row& o) const {
+        return compare(o) != 0;
+    }
+    bool operator <(const Row& o) const {
+        return compare(o) == -1;
+    }
+    bool operator >(const Row& o) const {
+        return compare(o) == 1;
+    }
+    bool operator <=(const Row& o) const {
+        return compare(o) != 1;
+    }
+    bool operator >=(const Row& o) const {
+        return compare(o) != -1;
+    }
+
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
 

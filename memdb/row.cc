@@ -212,6 +212,18 @@ void Row::update(int column_id, const Value& v) {
     }
 }
 
+int Row::compare(const Row& o) const {
+    if (&o == this) {
+        return 0;
+    }
+    verify(schema_ == o.schema_);
+
+    // compare based on keys
+    SortedMultiKey mine(this->get_key(), schema_);
+    SortedMultiKey other(o.get_key(), o.schema_);
+    return mine.compare(other);
+}
+
 Row* Row::create(Schema* schema, const std::map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);

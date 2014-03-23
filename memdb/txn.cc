@@ -276,20 +276,51 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
     return true;
 }
 
+
+// TODO merge query result in staging area and real table data
+class MergedCursor: public Enumerator<const Row*> {
+    Table* tbl_;
+    Enumerator<const Row*>* cursor_;
+    staging_table_row& inserts_;
+    staging_table_row& removes_;
+
+public:
+    MergedCursor(Table* tbl,
+                 Enumerator<const Row*>* cursor,
+                 staging_table_row& inserts,
+                 staging_table_row& removes)
+        : tbl_(tbl), cursor_(cursor), inserts_(inserts), removes_(removes) {}
+
+    ~MergedCursor() {
+        delete cursor_;
+    }
+
+    bool has_next() {
+        return false;
+    }
+
+    const Row* next() {
+        return nullptr;
+    }
+};
+
+
 ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
-    // TODO combine query result in staging area and real table data
     if (tbl->rtti() == TBL_UNSORTED) {
         UnsortedTable* t = (UnsortedTable *) tbl;
         UnsortedTable::Cursor* cursor = new UnsortedTable::Cursor(t->query(mb));
-        return ResultSet(cursor);
+        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
+        return ResultSet(merged_cursor);
     } else if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query(mb));
-        return ResultSet(cursor);
+        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
+        return ResultSet(merged_cursor);
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query(mb));
-        return ResultSet(cursor);
+        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
+        return ResultSet(merged_cursor);
     } else {
         verify(tbl->rtti() == TBL_UNSORTED || tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
         return ResultSet(nullptr);
