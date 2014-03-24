@@ -5,6 +5,8 @@
 #include "memdb/table.h"
 #include "base/all.h"
 
+#include "test-helper.h"
+
 using namespace base;
 using namespace mdb;
 using namespace std;
@@ -165,10 +167,12 @@ TEST(table, sorted_table_create) {
     schema->add_column("name", Value::STR);
 
     SortedTable* st = new SortedTable(schema);
+    EXPECT_TRUE(rows_are_sorted(st->all()));
 
     vector<Value> row1 = { Value((i32) 1), Value("alice") };
     Row* r1 = Row::create(schema, row1);
     st->insert(r1);
+    EXPECT_TRUE(rows_are_sorted(st->all()));
 
     SortedTable::Cursor cursor = st->query(r1->get_key());
     std::list<Row*> query_result;
@@ -184,6 +188,7 @@ TEST(table, sorted_table_create) {
     Row* r2 = Row::create(schema, row2);
     st->insert(r2);
 
+    EXPECT_TRUE(rows_are_sorted(st->all()));
     print_table(st);
     Log::debug("update row 2, set name = amy");
 
@@ -195,6 +200,7 @@ TEST(table, sorted_table_create) {
     EXPECT_EQ(r2->get_column("id").get_i32(), 2);
     EXPECT_EQ(r2->get_column("name").get_str(), "amy");
 
+    EXPECT_TRUE(rows_are_sorted(st->all()));
     print_table(st);
 
     unordered_map<string, Value> row3;
@@ -205,6 +211,7 @@ TEST(table, sorted_table_create) {
 
     Log::debug("inserted id=3, name=cathy");
     print_table(st);
+    EXPECT_TRUE(rows_are_sorted(st->all()));
 
     r3->update("id", (i32) 9);
     r3->update("name", "cathy awesome");
@@ -224,11 +231,13 @@ TEST(table, sorted_table_create) {
     // try removing row 2
     st->remove(Value((i32) 2));
 
+    EXPECT_TRUE(rows_are_sorted(st->all()));
     EXPECT_EQ(st->all().count(), 2);
 
     // try removing all rows
     st->remove(st->all());
     EXPECT_EQ(st->all().count(), 0);
+    EXPECT_TRUE(rows_are_sorted(st->all()));
 
     delete st;
     delete schema;
@@ -273,43 +282,56 @@ TEST(table, sorted_table_queries) {
 
     Log::debug("full table:");
     print_table(st);
+    EXPECT_TRUE(rows_are_sorted(st->all()));
 
     Log::debug("full table (reverse):");
     print_result(st->schema(), st->all(true));
+    EXPECT_TRUE(rows_are_sorted(st->all(true), true));
 
     Log::debug("key < 2:");
     print_result(st->schema(), st->query_lt(Value((i32) 2)));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 2))));
 
     Log::debug("key < 2 (reverse order):");
     print_result(st->schema(), st->query_lt(Value((i32) 2), true));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 2), true), true));
 
     Log::debug("key < 3:");
     print_result(st->schema(), st->query_lt(Value((i32) 3)));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 3))));
 
     Log::debug("key < 3 (reverse order):");
     print_result(st->schema(), st->query_lt(Value((i32) 3), true));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 3), true), true));
 
     Log::debug("key > 2:");
     print_result(st->schema(), st->query_gt(Value((i32) 2)));
+    EXPECT_TRUE(rows_are_sorted(st->query_gt(Value((i32) 2))));
 
     Log::debug("key > 2 (reverse order):");
     print_result(st->schema(), st->query_gt(Value((i32) 2), true));
+    EXPECT_TRUE(rows_are_sorted(st->query_gt(Value((i32) 2), true), true));
 
     Log::debug("key > 1:");
     print_result(st->schema(), st->query_gt(Value((i32) 1)));
+    EXPECT_TRUE(rows_are_sorted(st->query_gt(Value((i32) 1))));
 
     Log::debug("key > 1 (reverse order):");
     print_result(st->schema(), st->query_gt(Value((i32) 1), true));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 1), true), true));
 
     Log::debug("1 < key < 3:");
     print_result(st->schema(), st->query_in(Value((i32) 1), Value((i32) 3)));
+    EXPECT_TRUE(rows_are_sorted(st->query_in(Value((i32) 1), Value((i32) 3))));
 
     Log::debug("1 < key < 3 (reverse order):");
     print_result(st->schema(), st->query_in(Value((i32) 1), Value((i32) 3), true));
+    EXPECT_TRUE(rows_are_sorted(st->query_in(Value((i32) 1), Value((i32) 3), true), true));
 
     Log::debug("remove 1 < key < 3:");
     st->remove(st->query_in(Value((i32) 1), Value((i32) 3)));
     print_table(st);
+    EXPECT_TRUE(rows_are_sorted(st->all()));
 
     delete st;
     delete schema;
