@@ -1,3 +1,5 @@
+#include <limits>
+
 #include "row.h"
 #include "table.h"
 #include "txn.h"
@@ -98,9 +100,23 @@ bool table_row_pair::operator < (const table_row_pair& o) const {
     if (table != o.table) {
         return table < o.table;
     } else {
+        // we use ROW_MIN and ROW_MAX as special markers
+        // this helps to get a range query on staged insert set
+        if (row == ROW_MIN) {
+            return o.row != ROW_MIN;
+        } else if (row == ROW_MAX) {
+            return false;
+        } else if (o.row == ROW_MIN) {
+            return false;
+        } else if (o.row == ROW_MAX) {
+            return row != ROW_MAX;
+        }
         return (*row) < (*o.row);
     }
 }
+
+Row* table_row_pair::ROW_MIN = (Row *) 0;
+Row* table_row_pair::ROW_MAX = (Row *) ~0;
 
 Txn2PL::~Txn2PL() {
     relese_resource();
@@ -284,7 +300,10 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
 class MergedCursor: public NoCopy, public Enumerator<const Row*> {
     Table* tbl_;
     Enumerator<const Row*>* cursor_;
+
     const std::set<table_row_pair>& inserts_;
+    std::set<table_row_pair>::const_iterator inserts_next_, inserts_end_;
+
     const std::unordered_set<table_row_pair, table_row_pair::hash>& removes_;
 
     bool cached_;
@@ -296,13 +315,39 @@ class MergedCursor: public NoCopy, public Enumerator<const Row*> {
 
         while (next_candidate_ == nullptr && cursor_->has_next()) {
             next_candidate_ = cursor_->next();
+
+            // check if row has been removeds
             table_row_pair needle(tbl_, const_cast<Row*>(next_candidate_));
             if (removes_.find(needle) != removes_.end()) {
                 next_candidate_ = nullptr;
             }
         }
 
-        // TODO merge query result in staging area and real table data
+        // check if there's data in inserts_
+        if (next_candidate_ == nullptr) {
+            if (inserts_next_ != inserts_end_) {
+                cached_ = true;
+                cached_next_ = inserts_next_->row;
+                ++inserts_next_;
+            }
+        } else {
+            // next_candidate_ != nullptr
+            // check which is next: next_candidate_, or next in inserts_
+            cached_ = true;
+            if (inserts_next_ != inserts_end_) {
+                if (next_candidate_ < inserts_next_->row) {
+                    cached_next_ = next_candidate_;
+                    next_candidate_ = nullptr;
+                } else {
+                    cached_next_ = inserts_next_->row;
+                    ++inserts_next_;
+                }
+            } else {
+                cached_next_ = next_candidate_;
+                next_candidate_ = nullptr;
+            }
+        }
+
         return cached_;
     }
 
@@ -312,7 +357,10 @@ public:
                  const std::set<table_row_pair>& inserts,
                  const std::unordered_set<table_row_pair, table_row_pair::hash>& removes)
         : tbl_(tbl), cursor_(cursor), inserts_(inserts), removes_(removes),
-          cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {}
+          cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {
+              inserts_next_ = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+              inserts_end_ = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+        }
 
     ~MergedCursor() {
         delete cursor_;

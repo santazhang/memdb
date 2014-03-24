@@ -186,6 +186,9 @@ struct table_row_pair {
             return inthash64(v1, v2);
         }
     };
+
+    static Row* ROW_MIN;
+    static Row* ROW_MAX;
 };
 
 
