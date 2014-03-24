@@ -1,0 +1,102 @@
+# test cases in this file will be automatically generated into test-txn-gen.cc
+#
+# table(<table_name>, (*)<column_name>:<type>)
+#   (*) means the column is key column
+#   type: i32, i64, str
+#
+#
+# begin_test(<test_name>)[<txnmgr>, <table_type>, <row_locking>]
+#   txnmgr: unsafe, 2pl, occ
+#   table_type: unsorted, sorted, snapshot
+#   row_locking: none, coarse, fine
+#
+#
+# end_test
+#   all table contents will be cleared after end_test
+#
+#
+# read(txn, table, key_column_value, col_id)
+#
+#
+# write(txn, table, key_column_value, col_id, col_value)
+#
+#
+# insert(txn, table, col_values...)
+#
+#
+# remove(txn, table, key_column_value)
+
+
+table(student, *id:i32, name:str)
+
+begin_test()[2pl, unsorted, fine]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0) -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+        write(tx2, student, 1, 1, "bob") -> ok
+    commit(tx2)
+
+    begin(tx3)
+        read(tx3, student, 1, 1) = "bob" -> ok
+
+    begin(tx4)
+        read(tx4, student, 1, 1) = "bob" -> ok
+    abort(tx4)
+
+        remove(tx3, student, 1) -> ok
+
+    commit(tx3)
+
+end_test
+
+
+
+
+begin_test()[2pl, unsorted, fine]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        remove(tx1a, student, 1) -> fail
+        write(tx1a, student, 1, 1, "santa") -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+    commit(tx2)
+
+end_test
+
+
+
+begin_test(dummy)[2pl, unsorted, coarse]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob")
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0)
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+    commit(tx2)
+
+end_test

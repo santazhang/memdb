@@ -16,6 +16,8 @@ def configure(conf):
     conf.env.LIB_BASE = 'base'
 
 def build(bld):
+    _depend("test/test-txn-gen.cc", "test/test-txn-gen.txt", "test/test-txn-gen.py")
+
     bld.stlib(source=bld.path.ant_glob("memdb/*.cc"), target="memdb", includes="memdb", use="BASE PTHREAD")
 
     def _prog(source, target, includes=".", use="memdb BASE PTHREAD"):
@@ -59,3 +61,22 @@ def _run_cmd(cmd):
     Logs.pprint('PINK', cmd)
     os.system(cmd)
 
+def _properly_split(args):
+    if args == None:
+        return []
+    else:
+        return args.split()
+
+def _depend(target, source, action):
+    target = _properly_split(target)
+    source = _properly_split(source)
+    for s in source:
+        if not os.path.exists(s):
+            Logs.pprint('RED', "'%s' not found!" % s)
+            exit(1)
+    for t in target:
+        if not os.path.exists(t):
+            _run_cmd(action)
+            return
+    if not target or min([os.stat(t).st_mtime for t in target]) < max([os.stat(s).st_mtime for s in source]):
+        _run_cmd(action)
