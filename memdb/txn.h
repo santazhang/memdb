@@ -197,7 +197,7 @@ class Txn2PL: public Txn {
     std::unordered_map<Row*, std::vector<std::pair<int, Value>>> updates_;
     std::set<table_row_pair> inserts_;
     std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
-    std::set<std::pair<Row*, int>> locks_;
+    std::multimap<Row*, int> locks_;
 
     void relese_resource();
 

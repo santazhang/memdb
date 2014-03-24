@@ -164,6 +164,8 @@ bool Txn2PL::commit() {
         }
     }
     for (auto& it : removes_) {
+        // remove the locks since the row has gone already
+        locks_.erase(it.row);
         it.table->remove(it.row);
     }
     outcome_ = symbol_t::TXN_COMMIT;
@@ -198,13 +200,13 @@ bool Txn2PL::read_column(Row* row, int col_id, Value* value) {
         if (!coarse_row->rlock_row_by(this->id())) {
             return false;
         }
-        locks_.insert(make_pair(row, -1));
+        insert_into_map(locks_, row, -1);
     } else if (row->rtti() == symbol_t::ROW_FINE) {
         FineLockedRow* fine_row = ((FineLockedRow *) row);
         if (!fine_row->rlock_column_by(col_id, this->id())) {
             return false;
         }
-        locks_.insert(make_pair(row, col_id));
+        insert_into_map(locks_, row, col_id);
     } else {
         // row must either be FineLockedRow or CoarseLockedRow
         verify(row->rtti() == symbol_t::ROW_COARSE || row->rtti() == symbol_t::ROW_FINE);
@@ -241,13 +243,13 @@ bool Txn2PL::write_column(Row* row, int col_id, const Value& value) {
         if (!coarse_row->wlock_row_by(this->id())) {
             return false;
         }
-        locks_.insert(make_pair(row, -1));
+        insert_into_map(locks_, row, -1);
     } else if (row->rtti() == symbol_t::ROW_FINE) {
         FineLockedRow* fine_row = ((FineLockedRow *) row);
         if (!fine_row->wlock_column_by(col_id, this->id())) {
             return false;
         }
-        locks_.insert(make_pair(row, col_id));
+        insert_into_map(locks_, row, col_id);
     } else {
         // row must either be FineLockedRow or CoarseLockedRow
         verify(row->rtti() == symbol_t::ROW_COARSE || row->rtti() == symbol_t::ROW_FINE);
@@ -275,14 +277,14 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
             if (!coarse_row->wlock_row_by(this->id())) {
                 return false;
             }
-            locks_.insert(make_pair(row, -1));
+            insert_into_map(locks_, row, -1);
         } else if (row->rtti() == symbol_t::ROW_FINE) {
             FineLockedRow* fine_row = ((FineLockedRow *) row);
             for (size_t col_id = 0; col_id < row->schema()->columns_count(); col_id++) {
                 if (!fine_row->wlock_column_by(col_id, this->id())) {
                     return false;
                 }
-                locks_.insert(make_pair(row, col_id));
+                insert_into_map(locks_, row, col_id);
             }
         } else {
             // row must either be FineLockedRow or CoarseLockedRow

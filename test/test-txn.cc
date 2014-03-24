@@ -134,3 +134,53 @@ TEST(txn, query_in_unsorted_table_staging_area_while_inserting) {
     delete schema;
 }
 
+TEST(txn, query_in_unsorted_table_staging_area_while_deleting) {
+    TxnMgr2PL txnmgr;
+
+    Schema* schema = new Schema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_column("name", Value::STR);
+    UnsortedTable* student_tbl = new UnsortedTable(schema);
+
+    txnmgr.reg_table("student", student_tbl);
+
+    Txn* txn1 = txnmgr.start(1);
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    FineLockedRow* r1 = FineLockedRow::create(schema, row1);
+    txn1->insert_row(student_tbl, r1);
+    ResultSet rs1 = txn1->query(student_tbl, Value(i32(1)));
+    EXPECT_TRUE(rs1.has_next());
+    txn1->commit();
+
+    // txn2 tries to remove row {id=1}
+    Txn* txn2 = txnmgr.start(2);
+    ResultSet rs2 = txn2->query(student_tbl, Value(i32(1)));
+    EXPECT_TRUE(rs2.has_next());
+    txn2->remove_row(student_tbl, rs2.next());
+
+    Txn* txn3 = txnmgr.start(3);
+    ResultSet rs3 = txn3->query(student_tbl, Value(i32(1)));
+    EXPECT_TRUE(rs3.has_next()); // since row {id=1} is still in table
+    Row* txn3_r = rs3.next();
+    Value txn3_v1, txn3_v2;
+    EXPECT_FALSE(txn3->read_column(txn3_r, 0, &txn3_v1)); // since we have locked the row for deleting!
+    EXPECT_FALSE(txn3->read_column(txn3_r, 1, &txn3_v2)); // since we have locked the row for deleting!
+    txn3->abort();
+
+    // now we actually remove the row {id=1}
+    txn2->commit();
+
+    // now txn4 cannot see the row!
+    Txn* txn4 = txnmgr.start(4);
+    ResultSet rs4 = txn4->query(student_tbl, Value(i32(1)));
+    EXPECT_FALSE(rs4.has_next());
+    txn4->commit();
+
+    delete txn1;
+    delete txn2;
+    delete txn3;
+    delete txn4;
+
+    delete student_tbl;
+    delete schema;
+}
