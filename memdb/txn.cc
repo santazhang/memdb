@@ -94,6 +94,13 @@ ResultSet TxnUnsafe::query(Table* tbl, const MultiBlob& mb) {
     }
 }
 
+bool table_row_pair::operator < (const table_row_pair& o) const {
+    if (table != o.table) {
+        return table < o.table;
+    } else {
+        return (*row) < (*o.row);
+    }
+}
 
 Txn2PL::~Txn2PL() {
     relese_resource();

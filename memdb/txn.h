@@ -2,16 +2,18 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <map>
+#include <unordered_set>
 #include <set>
 
 #include "utils.h"
 #include "value.h"
-#include "row.h"
 
 namespace mdb {
 
 // forward declaration
+class Row;
 class Table;
 class UnsortedTable;
 class SortedTable;
@@ -170,13 +172,7 @@ struct table_row_pair {
     table_row_pair(Table* t, Row* r): table(t), row(r) {}
 
     // NOTE: used by set, to do range query in insert_ set
-    bool operator < (const table_row_pair& o) const {
-        if (table != o.table) {
-            return table < o.table;
-        } else {
-            return (*row) < (*o.row);
-        }
-    }
+    bool operator < (const table_row_pair& o) const;
 
     // NOTE: only used by unsorted_set, to lookup in removes_ set
     bool operator == (const table_row_pair& o) const {
