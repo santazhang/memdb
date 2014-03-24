@@ -285,48 +285,48 @@ TEST(table, sorted_table_queries) {
     EXPECT_TRUE(rows_are_sorted(st->all()));
 
     Log::debug("full table (reverse):");
-    print_result(st->schema(), st->all(true));
-    EXPECT_TRUE(rows_are_sorted(st->all(true), true));
+    print_result(st->schema(), st->all(symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(st->all(symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
     Log::debug("key < 2:");
     print_result(st->schema(), st->query_lt(Value((i32) 2)));
     EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 2))));
 
     Log::debug("key < 2 (reverse order):");
-    print_result(st->schema(), st->query_lt(Value((i32) 2), true));
-    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 2), true), true));
+    print_result(st->schema(), st->query_lt(Value((i32) 2), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 2), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
     Log::debug("key < 3:");
     print_result(st->schema(), st->query_lt(Value((i32) 3)));
     EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 3))));
 
     Log::debug("key < 3 (reverse order):");
-    print_result(st->schema(), st->query_lt(Value((i32) 3), true));
-    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 3), true), true));
+    print_result(st->schema(), st->query_lt(Value((i32) 3), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 3), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
     Log::debug("key > 2:");
     print_result(st->schema(), st->query_gt(Value((i32) 2)));
     EXPECT_TRUE(rows_are_sorted(st->query_gt(Value((i32) 2))));
 
     Log::debug("key > 2 (reverse order):");
-    print_result(st->schema(), st->query_gt(Value((i32) 2), true));
-    EXPECT_TRUE(rows_are_sorted(st->query_gt(Value((i32) 2), true), true));
+    print_result(st->schema(), st->query_gt(Value((i32) 2), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(st->query_gt(Value((i32) 2), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
     Log::debug("key > 1:");
     print_result(st->schema(), st->query_gt(Value((i32) 1)));
     EXPECT_TRUE(rows_are_sorted(st->query_gt(Value((i32) 1))));
 
     Log::debug("key > 1 (reverse order):");
-    print_result(st->schema(), st->query_gt(Value((i32) 1), true));
-    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 1), true), true));
+    print_result(st->schema(), st->query_gt(Value((i32) 1), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(st->query_lt(Value((i32) 1), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
     Log::debug("1 < key < 3:");
     print_result(st->schema(), st->query_in(Value((i32) 1), Value((i32) 3)));
     EXPECT_TRUE(rows_are_sorted(st->query_in(Value((i32) 1), Value((i32) 3))));
 
     Log::debug("1 < key < 3 (reverse order):");
-    print_result(st->schema(), st->query_in(Value((i32) 1), Value((i32) 3), true));
-    EXPECT_TRUE(rows_are_sorted(st->query_in(Value((i32) 1), Value((i32) 3), true), true));
+    print_result(st->schema(), st->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(st->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
     Log::debug("remove 1 < key < 3:");
     st->remove(st->query_in(Value((i32) 1), Value((i32) 3)));

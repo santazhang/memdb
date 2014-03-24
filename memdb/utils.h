@@ -34,6 +34,9 @@ typedef enum {
 
     TXN_ABORT,
     TXN_COMMIT,
+
+    ORD_ASC,
+    ORD_DESC,
 } symbol_t;
 
 uint32_t stringhash32(const void* data, int len);

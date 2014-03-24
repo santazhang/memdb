@@ -167,58 +167,62 @@ public:
         return Cursor(range.first, range.second);
     }
 
-    Cursor query_lt(const Value& kv, bool order_desc = false) {
-        return query_lt(kv.get_blob(), order_desc);
+    Cursor query_lt(const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_lt(kv.get_blob(), order);
     }
-    Cursor query_lt(const MultiBlob& mb, bool order_desc = false) {
-        return query_lt(SortedMultiKey(mb, schema_), order_desc);
+    Cursor query_lt(const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC) {
+        return query_lt(SortedMultiKey(mb, schema_), order);
     }
-    Cursor query_lt(const SortedMultiKey& smk, bool order_desc = false) {
+    Cursor query_lt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
         auto bound = rows_.lower_bound(smk);
-        if (order_desc) {
-            return Cursor(reverse_iterator(bound), rows_.rend());
-        } else {
+        if (order == symbol_t::ORD_ASC) {
             return Cursor(rows_.begin(), bound);
-        }
-    }
-
-    Cursor query_gt(const Value& kv, bool order_desc = false) {
-        return query_gt(kv.get_blob(), order_desc);
-    }
-    Cursor query_gt(const MultiBlob& mb, bool order_desc = false) {
-        return query_gt(SortedMultiKey(mb, schema_), order_desc);
-    }
-    Cursor query_gt(const SortedMultiKey& smk, bool order_desc = false) {
-        auto bound = rows_.upper_bound(smk);
-        if (order_desc) {
-            return Cursor(rows_.rbegin(), reverse_iterator(bound));
         } else {
-            return Cursor(bound, rows_.end());
+            return Cursor(reverse_iterator(bound), rows_.rend());
         }
     }
 
-    Cursor query_in(const Value& low, const Value& high, bool order_desc = false) {
-        return query_in(low.get_blob(), high.get_blob(), order_desc);
+    Cursor query_gt(const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_gt(kv.get_blob(), order);
     }
-    Cursor query_in(const MultiBlob& low, const MultiBlob& high, bool order_desc = false) {
-        return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_), order_desc);
+    Cursor query_gt(const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC) {
+        return query_gt(SortedMultiKey(mb, schema_), order);
     }
-    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high, bool order_desc = false) {
+    Cursor query_gt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
+        auto bound = rows_.upper_bound(smk);
+        if (order == symbol_t::ORD_ASC) {
+            return Cursor(bound, rows_.end());
+        } else {
+            return Cursor(rows_.rbegin(), reverse_iterator(bound));
+        }
+    }
+
+    Cursor query_in(const Value& low, const Value& high, symbol_t order = symbol_t::ORD_ASC) {
+        return query_in(low.get_blob(), high.get_blob(), order);
+    }
+    Cursor query_in(const MultiBlob& low, const MultiBlob& high, symbol_t order = symbol_t::ORD_ASC) {
+        return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_), order);
+    }
+    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC) {
+        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
         verify(low < high);
         auto low_bound = rows_.upper_bound(low);
         auto high_bound = rows_.lower_bound(high);
-        if (order_desc) {
-            return Cursor(reverse_iterator(high_bound), reverse_iterator(low_bound));
-        } else {
+        if (order == symbol_t::ORD_ASC) {
             return Cursor(low_bound, high_bound);
+        } else {
+            return Cursor(reverse_iterator(high_bound), reverse_iterator(low_bound));
         }
     }
 
-    Cursor all(bool order_desc = false) const {
-        if (order_desc) {
-            return Cursor(rows_.rbegin(), rows_.rend());
-        } else {
+    Cursor all(symbol_t order = symbol_t::ORD_ASC) const {
+        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
+        if (order == symbol_t::ORD_ASC) {
             return Cursor(std::begin(rows_), std::end(rows_));
+        } else {
+            return Cursor(rows_.rbegin(), rows_.rend());
         }
     }
 
