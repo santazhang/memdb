@@ -23,7 +23,7 @@ class genfile(object):
     def writeln(self, txt):
         out = "    " * self.indent_level + txt
         self.g.write(out + "\n")
-        print out
+#        print out
     def indent(self):
         self.indent_level += 1;
     def outdent(self):
