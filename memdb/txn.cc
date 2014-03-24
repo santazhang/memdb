@@ -130,9 +130,7 @@ void Txn2PL::abort() {
 bool Txn2PL::commit() {
     verify(outcome_ == symbol_t::NONE);
     for (auto& it : inserts_) {
-        Table* tbl = it.first;
-        Row* row = it.second;
-        tbl->insert(row);
+        it.table->insert(it.row);
     }
     for (auto& it : updates_) {
         Row* row = it.first;
@@ -143,9 +141,7 @@ bool Txn2PL::commit() {
         }
     }
     for (auto& it : removes_) {
-        Table* tbl = it.first;
-        Row* row = it.second;
-        tbl->remove(row);
+        it.table->remove(it.row);
     }
     outcome_ = symbol_t::TXN_COMMIT;
     relese_resource();
@@ -241,15 +237,15 @@ bool Txn2PL::write_column(Row* row, int col_id, const Value& value) {
 bool Txn2PL::insert_row(Table* tbl, Row* row) {
     verify(outcome_ == symbol_t::NONE);
     verify(row->get_table() == nullptr);
-    inserts_.insert(make_pair(tbl, row));
-    removes_.erase(make_pair(tbl, row));
+    inserts_.insert(table_row_pair(tbl, row));
+    removes_.erase(table_row_pair(tbl, row));
     return true;
 }
 
 bool Txn2PL::remove_row(Table* tbl, Row* row) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
-    if (inserts_.find(make_pair(tbl, row)) == inserts_.end()) {
+    if (inserts_.find(table_row_pair(tbl, row)) == inserts_.end()) {
         // lock whole row, only if row is on real table
         if (row->rtti() == symbol_t::ROW_COARSE) {
             CoarseLockedRow* coarse_row = (CoarseLockedRow *) row;
@@ -270,39 +266,65 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
             verify(row->rtti() == symbol_t::ROW_COARSE || row->rtti() == symbol_t::ROW_FINE);
         }
     }
-    inserts_.erase(make_pair(tbl, row));
+    inserts_.erase(table_row_pair(tbl, row));
     updates_.erase(row);
-    removes_.insert(make_pair(tbl, row));
+    removes_.insert(table_row_pair(tbl, row));
     return true;
 }
 
 
-// TODO merge query result in staging area and real table data
+// merge query result in staging area and real table data
 class MergedCursor: public NoCopy, public Enumerator<const Row*> {
     Table* tbl_;
     Enumerator<const Row*>* cursor_;
-    const staging_table_row& inserts_;
-    const staging_table_row& removes_;
+    const std::set<table_row_pair>& inserts_;
+    const std::unordered_set<table_row_pair, table_row_pair::hash>& removes_;
+
+    bool cached_;
+    const Row* cached_next_;
+    const Row* next_candidate_;
+
+    bool prefetch_next() {
+        verify(cached_ == false);
+
+        while (next_candidate_ == nullptr && cursor_->has_next()) {
+            next_candidate_ = cursor_->next();
+            table_row_pair needle(tbl_, const_cast<Row*>(next_candidate_));
+            if (removes_.find(needle) != removes_.end()) {
+                next_candidate_ = nullptr;
+            }
+        }
+
+        // TODO merge query result in staging area and real table data
+        return cached_;
+    }
 
 public:
     MergedCursor(Table* tbl,
                  Enumerator<const Row*>* cursor,
-                 const staging_table_row& inserts,
-                 const staging_table_row& removes)
-        : tbl_(tbl), cursor_(cursor), inserts_(inserts), removes_(removes) {}
+                 const std::set<table_row_pair>& inserts,
+                 const std::unordered_set<table_row_pair, table_row_pair::hash>& removes)
+        : tbl_(tbl), cursor_(cursor), inserts_(inserts), removes_(removes),
+          cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {}
 
     ~MergedCursor() {
         delete cursor_;
     }
 
     bool has_next() {
-        // TODO
-        return false;
+        if (cached_) {
+            return true;
+        } else {
+            return prefetch_next();
+        }
     }
 
     const Row* next() {
-        // TODO
-        return nullptr;
+        if (!cached_) {
+            verify(prefetch_next());
+        }
+        cached_ = false;
+        return cached_next_;
     }
 };
 

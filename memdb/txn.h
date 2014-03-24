@@ -162,31 +162,48 @@ public:
     }
 };
 
-class TableRowPairLess {
-public:
-    bool operator() (const std::pair<Table*, Row*>& a, const std::pair<Table*, Row*>& b) {
-        if (a.first != b.first) {
-            return a.first < b.first;
+
+struct table_row_pair {
+    Table* table;
+    Row* row;
+
+    table_row_pair(Table* t, Row* r): table(t), row(r) {}
+
+    // NOTE: used by set, to do range query in insert_ set
+    bool operator < (const table_row_pair& o) const {
+        if (table != o.table) {
+            return table < o.table;
         } else {
-            return (*a.second) < (*b.second);
+            return (*row) < (*o.row);
         }
     }
+
+    // NOTE: only used by unsorted_set, to lookup in removes_ set
+    bool operator == (const table_row_pair& o) const {
+        return table == o.table && row == o.row;
+    }
+
+    struct hash {
+        size_t operator() (const table_row_pair& p) const {
+            // TODO enhance pointer hashing algorithm
+            return size_t((size_t(p.table) >> 2) ^ size_t(p.row));
+        }
+    };
 };
 
-typedef std::set<std::pair<Table*, Row*>, TableRowPairLess> staging_table_row;
 
 class Txn2PL: public Txn {
     int outcome_;
     std::unordered_map<Row*, std::vector<std::pair<int, Value>>> updates_;
-    staging_table_row inserts_;
-    staging_table_row removes_;
+    std::set<table_row_pair> inserts_;
+    std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
     std::set<std::pair<Row*, int>> locks_;
 
     void relese_resource();
 
     bool debug_check_row_valid(Row* row) const {
         for (auto& it : removes_) {
-            if (it.second == row) {
+            if (it.row == row) {
                 return false;
             }
         }

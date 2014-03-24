@@ -113,6 +113,7 @@ TEST(txn, query_in_unsorted_table_staging_area_while_inserting) {
     ResultSet rs1 = txn1->query(student_tbl, Value(i32(1)));
     EXPECT_TRUE(rs1.has_next());
 
+    // txn2 cannot see the row that txn1 is trying to insert
     Txn* txn2 = txnmgr.start(2);
     ResultSet rs2 = txn2->query(student_tbl, Value(i32(1)));
     EXPECT_FALSE(rs2.has_next());
@@ -122,7 +123,7 @@ TEST(txn, query_in_unsorted_table_staging_area_while_inserting) {
 
     Txn* txn3 = txnmgr.start(3);
     ResultSet rs3 = txn3->query(student_tbl, Value(i32(1)));
-    EXPECT_FALSE(rs3.has_next());
+    EXPECT_TRUE(rs3.has_next());
     txn3->abort();
 
     delete txn1;
