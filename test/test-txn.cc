@@ -94,3 +94,42 @@ TEST(txn, basic_op_2pl) {
     delete student_tbl;
     delete schema;
 }
+
+
+TEST(txn, query_in_unsorted_table_staging_area_while_inserting) {
+    TxnMgr2PL txnmgr;
+
+    Schema* schema = new Schema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_column("name", Value::STR);
+    UnsortedTable* student_tbl = new UnsortedTable(schema);
+
+    txnmgr.reg_table("student", student_tbl);
+
+    Txn* txn1 = txnmgr.start(1);
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    FineLockedRow* r1 = FineLockedRow::create(schema, row1);
+    txn1->insert_row(student_tbl, r1);
+    ResultSet rs1 = txn1->query(student_tbl, Value(i32(1)));
+    EXPECT_TRUE(rs1.has_next());
+
+    Txn* txn2 = txnmgr.start(2);
+    ResultSet rs2 = txn2->query(student_tbl, Value(i32(1)));
+    EXPECT_FALSE(rs2.has_next());
+    txn2->abort();
+
+    txn1->commit();
+
+    Txn* txn3 = txnmgr.start(3);
+    ResultSet rs3 = txn3->query(student_tbl, Value(i32(1)));
+    EXPECT_FALSE(rs3.has_next());
+    txn3->abort();
+
+    delete txn1;
+    delete txn2;
+    delete txn3;
+
+    delete student_tbl;
+    delete schema;
+}
+

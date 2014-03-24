@@ -278,17 +278,17 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
 
 
 // TODO merge query result in staging area and real table data
-class MergedCursor: public Enumerator<const Row*> {
+class MergedCursor: public NoCopy, public Enumerator<const Row*> {
     Table* tbl_;
     Enumerator<const Row*>* cursor_;
-    staging_table_row& inserts_;
-    staging_table_row& removes_;
+    const staging_table_row& inserts_;
+    const staging_table_row& removes_;
 
 public:
     MergedCursor(Table* tbl,
                  Enumerator<const Row*>* cursor,
-                 staging_table_row& inserts,
-                 staging_table_row& removes)
+                 const staging_table_row& inserts,
+                 const staging_table_row& removes)
         : tbl_(tbl), cursor_(cursor), inserts_(inserts), removes_(removes) {}
 
     ~MergedCursor() {
@@ -296,10 +296,12 @@ public:
     }
 
     bool has_next() {
+        // TODO
         return false;
     }
 
     const Row* next() {
+        // TODO
         return nullptr;
     }
 };
