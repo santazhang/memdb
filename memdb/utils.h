@@ -42,4 +42,23 @@ inline uint32_t stringhash32(const std::string& str) {
     return stringhash32(&str[0], str.size());
 }
 
+uint64_t stringhash64(const void* data, int len);
+
+inline uint64_t stringhash64(const std::string& str) {
+    return stringhash64(&str[0], str.size());
+}
+
+uint32_t inthash32(uint32_t* key, int key_length);
+uint64_t inthash64(uint64_t* key, int key_length);
+
+inline uint32_t inthash32(uint32_t key1, uint32_t key2) {
+    uint32_t arr[] = {key1, key2};
+    return inthash32(arr, 2);
+}
+
+inline uint64_t inthash64(uint64_t key1, uint64_t key2) {
+    uint64_t arr[] = {key1, key2};
+    return inthash64(arr, 2);
+}
+
 } // namespace mdb

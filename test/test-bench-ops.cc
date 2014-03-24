@@ -3,6 +3,8 @@
 #include "memdb/table.h"
 #include "base/all.h"
 
+#include "test-helper.h"
+
 using namespace base;
 using namespace mdb;
 using namespace std;
@@ -31,8 +33,7 @@ TEST(bench, table_insert) {
     }
     timer.stop();
     int n = n_batches * batch_size;
-    Log::info("inserting %d rows times takes %.2lf seconds, op/s=%.0lf (UnsortedTable)",
-        n, timer.elapsed(), n / timer.elapsed());
+    report_qps("inserting (UnsortedTable) rows", n, timer.elapsed());
 
     delete ut;
     delete schema;
@@ -62,8 +63,7 @@ TEST(bench, table_insert_sorted) {
     }
     timer.stop();
     int n = n_batches * batch_size;
-    Log::info("inserting %d rows times takes %.2lf seconds, op/s=%.0lf (SortedTable)",
-        n, timer.elapsed(), n / timer.elapsed());
+    report_qps("inserting (SortedTable) rows", n, timer.elapsed());
 
     delete st;
     delete schema;
@@ -93,8 +93,7 @@ TEST(bench, table_insert_snapshot) {
     }
     timer.stop();
     int n = n_batches * batch_size;
-    Log::info("inserting %d rows times takes %.2lf seconds, op/s=%.0lf (SnapshotTable)",
-        n, timer.elapsed(), n / timer.elapsed());
+    report_qps("inserting (SnapshotTable) rows", n, timer.elapsed());
 
     delete st;
     delete schema;
@@ -117,6 +116,69 @@ TEST(bench, stringhash32) {
     }
     t.stop();
     int n = n_batches * batch_size;
-    Log::info("stringhash32('%s') %d times takes %.2lf seconds, op/s=%.0lf",
-        str.c_str(), n, t.elapsed(), n / t.elapsed());
+    report_qps("stringhash32 (hello, world)", n, t.elapsed());
+}
+
+TEST(bench, stringhash64) {
+    string str = "hello, world";
+    const int batch_size = 100000;
+    int n_batches = 0;
+    Timer t;
+    t.start();
+    for (;;) {
+        for (int i = 0; i < batch_size; i++) {
+            stringhash64(str);
+        }
+        n_batches++;
+        if (t.elapsed() > 2.0) {
+            break;
+        }
+    }
+    t.stop();
+    int n = n_batches * batch_size;
+    report_qps("stringhash64 (hello, world)", n, t.elapsed());
+}
+
+
+TEST(bench, inthash32) {
+    uint32_t key1 = 1987;
+    uint32_t key2 = 1001;
+    const int batch_size = 100000;
+    int n_batches = 0;
+    Timer t;
+    t.start();
+    for (;;) {
+        for (int i = 0; i < batch_size; i++) {
+            inthash32(key1, key2);
+        }
+        n_batches++;
+        if (t.elapsed() > 2.0) {
+            break;
+        }
+    }
+    t.stop();
+    int n = n_batches * batch_size;
+    report_qps("inthash32 (1987, 1001)", n, t.elapsed());
+}
+
+
+TEST(bench, inthash64) {
+    uint64_t key1 = 1987;
+    uint64_t key2 = 1001;
+    const int batch_size = 100000;
+    int n_batches = 0;
+    Timer t;
+    t.start();
+    for (;;) {
+        for (int i = 0; i < batch_size; i++) {
+            inthash64(key1, key2);
+        }
+        n_batches++;
+        if (t.elapsed() > 2.0) {
+            break;
+        }
+    }
+    t.stop();
+    int n = n_batches * batch_size;
+    report_qps("inthash64 (1987, 1001)", n, t.elapsed());
 }

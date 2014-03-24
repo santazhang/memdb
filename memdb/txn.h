@@ -181,8 +181,9 @@ struct table_row_pair {
 
     struct hash {
         size_t operator() (const table_row_pair& p) const {
-            // TODO enhance pointer hashing algorithm
-            return size_t((size_t(p.table) >> 2) ^ size_t(p.row));
+            size_t v1 = size_t(p.table);
+            size_t v2 = size_t(p.row);
+            return inthash64(v1, v2);
         }
     };
 };

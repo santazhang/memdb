@@ -6,13 +6,11 @@
 #include "memdb/table.h"
 #include "memdb/txn.h"
 
+#include "test-helper.h"
+
 using namespace std;
 using namespace mdb;
 using namespace base;
-
-static void report_qps(const char* action, int n_ops, double duration) {
-    Log::info("%s: %d ops, took %.2lf sec, qps=%s", action, n_ops, duration, format_decimal(n_ops / duration).c_str());
-}
 
 static void benchmark_kv(TxnMgr* mgr, symbol_t table_type, symbol_t row_type) {
     Schema* schema = new Schema;
