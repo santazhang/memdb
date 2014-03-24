@@ -28,6 +28,7 @@ class genfile(object):
         self.indent_level += 1;
     def outdent(self):
         self.indent_level -= 1;
+        assert self.indent_level >= 0
 
 txnmgr_type = "TxnMgr2PL"
 row_type = "FineLockedRow"
@@ -184,6 +185,7 @@ using namespace mdb;
                     g.writeln("EXPECT_FALSE(txn_%s->remove_row(tbl_%s, query_row));" % (txn, tbl))
                 else:
                     g.writeln("txn_%s->remove_row(tbl_%s, query_row);" % (txn, tbl))
+                g.outdent()
                 g.writeln("} while(0);")
 
             elif line.startswith("read"):
