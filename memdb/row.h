@@ -231,16 +231,16 @@ public:
         return ROW_FINE;
     }
 
-    bool rlock_column_by(int column_id, lock_owner_t o) {
+    bool rlock_column_by(column_id_t column_id, lock_owner_t o) {
         verify(!rdonly_);
         return lock[column_id].rlock_by(o);
     }
     bool rlock_column_by(const std::string& col_name, lock_owner_t o) {
         verify(!rdonly_);
-        int column_id = schema_->get_column_id(col_name);
+        column_id_t column_id = schema_->get_column_id(col_name);
         return lock[column_id].rlock_by(o);
     }
-    bool wlock_column_by(int column_id, lock_owner_t o) {
+    bool wlock_column_by(column_id_t column_id, lock_owner_t o) {
         verify(!rdonly_);
         return lock[column_id].wlock_by(o);
     }
@@ -249,13 +249,13 @@ public:
         int column_id = schema_->get_column_id(col_name);
         return lock[column_id].wlock_by(o);
     }
-    bool unlock_column_by(int column_id, lock_owner_t o) {
+    bool unlock_column_by(column_id_t column_id, lock_owner_t o) {
         verify(!rdonly_);
         return lock[column_id].unlock_by(o);
     }
     bool unlock_column_by(const std::string& col_name, lock_owner_t o) {
         verify(!rdonly_);
-        int column_id = schema_->get_column_id(col_name);
+        column_id_t column_id = schema_->get_column_id(col_name);
         return lock[column_id].unlock_by(o);
     }
 
@@ -296,12 +296,12 @@ public:
         delete[] ver_;
     }
 
-    virtual void update(int column_id, const std::string& str) {
+    virtual void update(column_id_t column_id, const std::string& str) {
         do_update(column_id, str);
         ver_[column_id]++;
     }
 
-    version_t get_column_ver(int column_id) const {
+    version_t get_column_ver(column_id_t column_id) const {
         return ver_[column_id];
     }
 

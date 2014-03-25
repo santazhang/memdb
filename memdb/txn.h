@@ -80,12 +80,12 @@ public:
     virtual void abort() = 0;
     virtual bool commit() = 0;
 
-    virtual bool read_column(Row* row, int col_id, Value* value) = 0;
-    virtual bool write_column(Row* row, int col_id, const Value& value) = 0;
+    virtual bool read_column(Row* row, column_id_t col_id, Value* value) = 0;
+    virtual bool write_column(Row* row, column_id_t col_id, const Value& value) = 0;
     virtual bool insert_row(Table* tbl, Row* row) = 0;
     virtual bool remove_row(Table* tbl, Row* row) = 0;
 
-    bool read_columns(Row* row, const std::vector<int>& col_ids, std::vector<Value>* values) {
+    bool read_columns(Row* row, const std::vector<column_id_t>& col_ids, std::vector<Value>* values) {
         for (auto col_id : col_ids) {
             Value v;
             if (read_column(row, col_id, &v)) {
@@ -97,7 +97,7 @@ public:
         return true;
     }
 
-    bool write_columns(Row* row, const std::vector<int>& col_ids, const std::vector<Value>& values) {
+    bool write_columns(Row* row, const std::vector<column_id_t>& col_ids, const std::vector<Value>& values) {
         verify(col_ids.size() == values.size());
         for (size_t i = 0; i < col_ids.size(); i++) {
             if (!write_column(row, col_ids[i], values[i])) {
@@ -173,8 +173,8 @@ public:
         // always allowed
         return true;
     }
-    virtual bool read_column(Row* row, int col_id, Value* value);
-    virtual bool write_column(Row* row, int col_id, const Value& value);
+    virtual bool read_column(Row* row, column_id_t col_id, Value* value);
+    virtual bool write_column(Row* row, column_id_t col_id, const Value& value);
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
 
@@ -225,11 +225,11 @@ struct table_row_pair {
 class Txn2PL: public Txn {
 protected:
 
-    int outcome_;
-    std::unordered_map<Row*, std::vector<std::pair<int, Value>>> updates_;
+    symbol_t outcome_;
+    std::unordered_map<Row*, std::vector<std::pair<column_id_t, Value>>> updates_;
     std::multiset<table_row_pair> inserts_;
     std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
-    std::multimap<Row*, int> locks_;
+    std::multimap<Row*, column_id_t> locks_;
 
     void relese_resource();
 
@@ -249,8 +249,8 @@ public:
 
     void abort();
     bool commit();
-    virtual bool read_column(Row* row, int col_id, Value* value);
-    virtual bool write_column(Row* row, int col_id, const Value& value);
+    virtual bool read_column(Row* row, column_id_t col_id, Value* value);
+    virtual bool write_column(Row* row, column_id_t col_id, const Value& value);
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
 
@@ -264,6 +264,7 @@ public:
 };
 
 class TxnMgr2PL: public TxnMgr {
+    std::multimap<Row*, std::pair<column_id_t, version_t>> vers_;
 public:
     virtual Txn* start(txn_id_t txnid) {
         return new Txn2PL(this, txnid);

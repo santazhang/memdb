@@ -19,7 +19,7 @@ public:
     struct column_info {
         column_info(): id(-1), key(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
 
-        int id;
+        column_id_t id;
         std::string name;
         bool key;
         Value::kind type;
@@ -41,7 +41,7 @@ public:
         return add_column(name, type, true);
     }
 
-    int get_column_id(const std::string& name) const {
+    column_id_t get_column_id(const std::string& name) const {
         auto it = col_name_to_id_.find(name);
         if (it != std::end(col_name_to_id_)) {
             assert(col_info_[it->second].id == it->second);
@@ -49,19 +49,19 @@ public:
         }
         return -1;
     }
-    const std::vector<int>& key_columns_id() const {
+    const std::vector<column_id_t>& key_columns_id() const {
         return key_cols_id_;
     }
 
     const column_info* get_column_info(const std::string& name) const {
-        int col_id = get_column_id(name);
+        column_id_t col_id = get_column_id(name);
         if (col_id < 0) {
             return nullptr;
         } else {
             return &col_info_[col_id];
         }
     }
-    const column_info* get_column_info(int column_id) const {
+    const column_info* get_column_info(column_id_t column_id) const {
         return &col_info_[column_id];
     }
 
@@ -78,9 +78,9 @@ public:
 
 private:
 
-    std::unordered_map<std::string, int> col_name_to_id_;
+    std::unordered_map<std::string, column_id_t> col_name_to_id_;
     std::vector<column_info> col_info_;
-    std::vector<int> key_cols_id_;
+    std::vector<column_id_t> key_cols_id_;
 
     // number of variable size cols (lookup table on row data)
     int var_size_cols_;

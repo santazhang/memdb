@@ -63,13 +63,13 @@ SnapshotTable* TxnMgr::get_snapshot_table(const std::string& tbl_name) const {
 
 
 
-bool TxnUnsafe::read_column(Row* row, int col_id, Value* value) {
+bool TxnUnsafe::read_column(Row* row, column_id_t col_id, Value* value) {
     *value = row->get_column(col_id);
     // always allowed
     return true;
 }
 
-bool TxnUnsafe::write_column(Row* row, int col_id, const Value& value) {
+bool TxnUnsafe::write_column(Row* row, column_id_t col_id, const Value& value) {
     row->update(col_id, value);
     // always allowed
     return true;
@@ -219,7 +219,7 @@ void Txn2PL::relese_resource() {
             assert(it.second == -1);
             ((CoarseLockedRow *) row)->unlock_row_by(this->id());
         } else if (row->rtti() == ROW_FINE) {
-            int column_id = it.second;
+            column_id_t column_id = it.second;
             ((FineLockedRow *) row)->unlock_column_by(column_id, this->id());
         } else {
             // row must either be FineLockedRow or CoarseLockedRow
@@ -244,7 +244,7 @@ bool Txn2PL::commit() {
         // TODO update on snapshot table (remove then insert)
         Row* row = it.first;
         for (auto& pair : it.second) {
-            int column_id = pair.first;
+            column_id_t column_id = pair.first;
             Value& value = pair.second;
             row->update(column_id, value);
         }
@@ -259,7 +259,7 @@ bool Txn2PL::commit() {
     return true;
 }
 
-bool Txn2PL::read_column(Row* row, int col_id, Value* value) {
+bool Txn2PL::read_column(Row* row, column_id_t col_id, Value* value) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
@@ -302,7 +302,7 @@ bool Txn2PL::read_column(Row* row, int col_id, Value* value) {
     return true;
 }
 
-bool Txn2PL::write_column(Row* row, int col_id, const Value& value) {
+bool Txn2PL::write_column(Row* row, column_id_t col_id, const Value& value) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
