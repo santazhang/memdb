@@ -246,6 +246,7 @@ TEST(txn, query_sorted_table_ordering) {
     EXPECT_EQ(result_set_size(txn1->all(student_tbl)), 5);
     EXPECT_TRUE(rows_are_sorted(txn1->all(student_tbl)));
     txn1->commit();
+    delete txn1;
 
     delete student_tbl;
 }
