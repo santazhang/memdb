@@ -8,8 +8,8 @@ using namespace base;
 using namespace mdb;
 
 
-// input: table(student, *id:i32, name:str)
-// input: begin_test()[2pl, unsorted, fine]
+// L30: table(student, *id:i32, name:str)
+// L32: begin_test()[2pl, unsorted, fine]
 TEST(txn_gen, 1) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -17,21 +17,21 @@ TEST(txn_gen, 1) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new UnsortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L34: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L35: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob") -> ok
+    // L36: insert(tx1, student, 2, "bob") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: begin(tx1a)
+    // L38: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: read(tx1a, student, 1, 0) -> fail
+    // L39: read(tx1a, student, 1, 0) -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -41,15 +41,15 @@ TEST(txn_gen, 1) {
         Value v_read;
         EXPECT_FALSE(txn_tx1a->read_column(query_row, 0, &v_read));
     } while(0);
-    // input: abort(tx1a)
+    // L40: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L42: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L44: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L45: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -61,7 +61,7 @@ TEST(txn_gen, 1) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: write(tx2, student, 1, 1, "bob") -> ok
+    // L46: write(tx2, student, 1, 1, "bob") -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -72,12 +72,12 @@ TEST(txn_gen, 1) {
         Value v_write("bob");
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
-    // input: commit(tx2)
+    // L47: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: begin(tx3)
+    // L49: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
-    // input: read(tx3, student, 1, 1) = "bob" -> ok
+    // L50: read(tx3, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -89,9 +89,9 @@ TEST(txn_gen, 1) {
         EXPECT_TRUE(txn_tx3->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: begin(tx4)
+    // L52: begin(tx4)
     Txn* txn_tx4 = txnmgr.start(-1495230934652649125);
-    // input: read(tx4, student, 1, 1) = "bob" -> ok
+    // L53: read(tx4, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx4->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -103,10 +103,10 @@ TEST(txn_gen, 1) {
         EXPECT_TRUE(txn_tx4->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: abort(tx4)
+    // L54: abort(tx4)
     txn_tx4->abort();
     delete txn_tx4;
-    // input: remove(tx3, student, 1) -> ok
+    // L56: remove(tx3, student, 1) -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -116,15 +116,15 @@ TEST(txn_gen, 1) {
         Row* query_row = result_set.next();
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
-    // input: commit(tx3)
+    // L58: commit(tx3)
     txn_tx3->commit();
     delete txn_tx3;
-    // input: end_test
+    // L60: end_test
     delete tbl_student;
 }
 
 
-// input: begin_test()[2pl, unsorted, coarse]
+// L62: begin_test()[2pl, unsorted, coarse]
 TEST(txn_gen, 2) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -132,21 +132,21 @@ TEST(txn_gen, 2) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new UnsortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L64: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L65: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob") -> ok
+    // L66: insert(tx1, student, 2, "bob") -> ok
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: begin(tx1a)
+    // L68: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: read(tx1a, student, 1, 0) -> fail
+    // L69: read(tx1a, student, 1, 0) -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -156,15 +156,15 @@ TEST(txn_gen, 2) {
         Value v_read;
         EXPECT_FALSE(txn_tx1a->read_column(query_row, 0, &v_read));
     } while(0);
-    // input: abort(tx1a)
+    // L70: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L72: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L74: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L75: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -176,7 +176,7 @@ TEST(txn_gen, 2) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: write(tx2, student, 1, 1, "bob") -> ok
+    // L76: write(tx2, student, 1, 1, "bob") -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -187,12 +187,12 @@ TEST(txn_gen, 2) {
         Value v_write("bob");
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
-    // input: commit(tx2)
+    // L77: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: begin(tx3)
+    // L79: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
-    // input: read(tx3, student, 1, 1) = "bob" -> ok
+    // L80: read(tx3, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -204,9 +204,9 @@ TEST(txn_gen, 2) {
         EXPECT_TRUE(txn_tx3->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: begin(tx4)
+    // L82: begin(tx4)
     Txn* txn_tx4 = txnmgr.start(-1495230934652649125);
-    // input: read(tx4, student, 1, 1) = "bob" -> ok
+    // L83: read(tx4, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx4->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -218,10 +218,10 @@ TEST(txn_gen, 2) {
         EXPECT_TRUE(txn_tx4->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: abort(tx4)
+    // L84: abort(tx4)
     txn_tx4->abort();
     delete txn_tx4;
-    // input: remove(tx3, student, 1) -> ok
+    // L86: remove(tx3, student, 1) -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -231,15 +231,15 @@ TEST(txn_gen, 2) {
         Row* query_row = result_set.next();
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
-    // input: commit(tx3)
+    // L88: commit(tx3)
     txn_tx3->commit();
     delete txn_tx3;
-    // input: end_test
+    // L90: end_test
     delete tbl_student;
 }
 
 
-// input: begin_test()[2pl, sorted, coarse]
+// L93: begin_test()[2pl, sorted, coarse]
 TEST(txn_gen, 3) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -247,21 +247,21 @@ TEST(txn_gen, 3) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new SortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L95: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L96: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob") -> ok
+    // L97: insert(tx1, student, 2, "bob") -> ok
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: begin(tx1a)
+    // L99: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: read(tx1a, student, 1, 0) -> fail
+    // L100: read(tx1a, student, 1, 0) -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -271,15 +271,15 @@ TEST(txn_gen, 3) {
         Value v_read;
         EXPECT_FALSE(txn_tx1a->read_column(query_row, 0, &v_read));
     } while(0);
-    // input: abort(tx1a)
+    // L101: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L103: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L105: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L106: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -291,7 +291,7 @@ TEST(txn_gen, 3) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: write(tx2, student, 1, 1, "bob") -> ok
+    // L107: write(tx2, student, 1, 1, "bob") -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -302,12 +302,12 @@ TEST(txn_gen, 3) {
         Value v_write("bob");
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
-    // input: commit(tx2)
+    // L108: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: begin(tx3)
+    // L110: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
-    // input: read(tx3, student, 1, 1) = "bob" -> ok
+    // L111: read(tx3, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -319,9 +319,9 @@ TEST(txn_gen, 3) {
         EXPECT_TRUE(txn_tx3->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: begin(tx4)
+    // L113: begin(tx4)
     Txn* txn_tx4 = txnmgr.start(-1495230934652649125);
-    // input: read(tx4, student, 1, 1) = "bob" -> ok
+    // L114: read(tx4, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx4->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -333,10 +333,10 @@ TEST(txn_gen, 3) {
         EXPECT_TRUE(txn_tx4->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: abort(tx4)
+    // L115: abort(tx4)
     txn_tx4->abort();
     delete txn_tx4;
-    // input: remove(tx3, student, 1) -> ok
+    // L117: remove(tx3, student, 1) -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -346,15 +346,15 @@ TEST(txn_gen, 3) {
         Row* query_row = result_set.next();
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
-    // input: commit(tx3)
+    // L119: commit(tx3)
     txn_tx3->commit();
     delete txn_tx3;
-    // input: end_test
+    // L121: end_test
     delete tbl_student;
 }
 
 
-// input: begin_test()[2pl, sorted, fine]
+// L123: begin_test()[2pl, sorted, fine]
 TEST(txn_gen, 4) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -362,21 +362,21 @@ TEST(txn_gen, 4) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new SortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L125: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L126: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob") -> ok
+    // L127: insert(tx1, student, 2, "bob") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: begin(tx1a)
+    // L129: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: read(tx1a, student, 1, 0) -> fail
+    // L130: read(tx1a, student, 1, 0) -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -386,15 +386,15 @@ TEST(txn_gen, 4) {
         Value v_read;
         EXPECT_FALSE(txn_tx1a->read_column(query_row, 0, &v_read));
     } while(0);
-    // input: abort(tx1a)
+    // L131: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L133: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L135: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L136: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -406,7 +406,7 @@ TEST(txn_gen, 4) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: write(tx2, student, 1, 1, "bob") -> ok
+    // L137: write(tx2, student, 1, 1, "bob") -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -417,12 +417,12 @@ TEST(txn_gen, 4) {
         Value v_write("bob");
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
-    // input: commit(tx2)
+    // L138: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: begin(tx3)
+    // L140: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
-    // input: read(tx3, student, 1, 1) = "bob" -> ok
+    // L141: read(tx3, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -434,9 +434,9 @@ TEST(txn_gen, 4) {
         EXPECT_TRUE(txn_tx3->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: begin(tx4)
+    // L143: begin(tx4)
     Txn* txn_tx4 = txnmgr.start(-1495230934652649125);
-    // input: read(tx4, student, 1, 1) = "bob" -> ok
+    // L144: read(tx4, student, 1, 1) = "bob" -> ok
     do {
         ResultSet result_set = txn_tx4->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -448,10 +448,10 @@ TEST(txn_gen, 4) {
         EXPECT_TRUE(txn_tx4->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("bob"));
     } while(0);
-    // input: abort(tx4)
+    // L145: abort(tx4)
     txn_tx4->abort();
     delete txn_tx4;
-    // input: remove(tx3, student, 1) -> ok
+    // L147: remove(tx3, student, 1) -> ok
     do {
         ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -461,15 +461,15 @@ TEST(txn_gen, 4) {
         Row* query_row = result_set.next();
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
-    // input: commit(tx3)
+    // L149: commit(tx3)
     txn_tx3->commit();
     delete txn_tx3;
-    // input: end_test
+    // L151: end_test
     delete tbl_student;
 }
 
 
-// input: begin_test()[2pl, sorted, fine]
+// L154: begin_test()[2pl, sorted, fine]
 TEST(txn_gen, 5) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -477,21 +477,21 @@ TEST(txn_gen, 5) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new SortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L156: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L157: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob") -> ok
+    // L158: insert(tx1, student, 2, "bob") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: begin(tx1a)
+    // L160: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: remove(tx1a, student, 1) -> fail
+    // L161: remove(tx1a, student, 1) -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -500,7 +500,7 @@ TEST(txn_gen, 5) {
         Row* query_row = result_set.next();
         EXPECT_FALSE(txn_tx1a->remove_row(tbl_student, query_row));
     } while(0);
-    // input: write(tx1a, student, 1, 1, "santa") -> fail
+    // L162: write(tx1a, student, 1, 1, "santa") -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -510,15 +510,15 @@ TEST(txn_gen, 5) {
         Value v_write("santa");
         EXPECT_FALSE(txn_tx1a->write_column(query_row, 1, v_write));
     } while(0);
-    // input: abort(tx1a)
+    // L163: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L165: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L167: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L168: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -530,15 +530,15 @@ TEST(txn_gen, 5) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: commit(tx2)
+    // L169: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: end_test
+    // L171: end_test
     delete tbl_student;
 }
 
 
-// input: begin_test()[2pl, unsorted, fine]
+// L174: begin_test()[2pl, unsorted, fine]
 TEST(txn_gen, 6) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -546,21 +546,21 @@ TEST(txn_gen, 6) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new UnsortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L176: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L177: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob") -> ok
+    // L178: insert(tx1, student, 2, "bob") -> ok
     {
         Row* insert_row = FineLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: begin(tx1a)
+    // L180: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: remove(tx1a, student, 1) -> fail
+    // L181: remove(tx1a, student, 1) -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -569,7 +569,7 @@ TEST(txn_gen, 6) {
         Row* query_row = result_set.next();
         EXPECT_FALSE(txn_tx1a->remove_row(tbl_student, query_row));
     } while(0);
-    // input: write(tx1a, student, 1, 1, "santa") -> fail
+    // L182: write(tx1a, student, 1, 1, "santa") -> fail
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -579,15 +579,15 @@ TEST(txn_gen, 6) {
         Value v_write("santa");
         EXPECT_FALSE(txn_tx1a->write_column(query_row, 1, v_write));
     } while(0);
-    // input: abort(tx1a)
+    // L183: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L185: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L187: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L188: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -599,15 +599,15 @@ TEST(txn_gen, 6) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: commit(tx2)
+    // L189: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: end_test
+    // L191: end_test
     delete tbl_student;
 }
 
 
-// input: begin_test(dummy)[2pl, unsorted, coarse]
+// L195: begin_test(dummy)[2pl, unsorted, coarse]
 TEST(txn_gen, dummy) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -615,21 +615,21 @@ TEST(txn_gen, dummy) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new UnsortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L197: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L198: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob")
+    // L199: insert(tx1, student, 2, "bob")
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         txn_tx1->insert_row(tbl_student, insert_row);
     }
-    // input: begin(tx1a)
+    // L201: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: read(tx1a, student, 1, 0)
+    // L202: read(tx1a, student, 1, 0)
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -639,15 +639,15 @@ TEST(txn_gen, dummy) {
         Value v_read;
         txn_tx1a->read_column(query_row, 0, &v_read);
     } while(0);
-    // input: abort(tx1a)
+    // L203: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L205: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L207: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L208: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -659,15 +659,15 @@ TEST(txn_gen, dummy) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: commit(tx2)
+    // L209: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: end_test
+    // L211: end_test
     delete tbl_student;
 }
 
 
-// input: begin_test(dummy_2)[2pl, sorted, coarse]
+// L213: begin_test(dummy_2)[2pl, sorted, coarse]
 TEST(txn_gen, dummy_2) {
     TxnMgr2PL txnmgr;
     Schema schema_student;
@@ -675,21 +675,21 @@ TEST(txn_gen, dummy_2) {
     schema_student.add_column("name", Value::STR);
     Table* tbl_student = new SortedTable(&schema_student);
     txnmgr.reg_table("student", tbl_student);
-    // input: begin(tx1)
+    // L215: begin(tx1)
     Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
-    // input: insert(tx1, student, 1, "alice") -> ok
+    // L216: insert(tx1, student, 1, "alice") -> ok
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
-    // input: insert(tx1, student, 2, "bob")
+    // L217: insert(tx1, student, 2, "bob")
     {
         Row* insert_row = CoarseLockedRow::create(&schema_student, vector<Value>({Value(i32(2)),Value("bob")}));
         txn_tx1->insert_row(tbl_student, insert_row);
     }
-    // input: begin(tx1a)
+    // L219: begin(tx1a)
     Txn* txn_tx1a = txnmgr.start(2314037222044390706);
-    // input: read(tx1a, student, 1, 0)
+    // L220: read(tx1a, student, 1, 0)
     do {
         ResultSet result_set = txn_tx1a->query(tbl_student, Value(i32(1)));
         if (!result_set.has_next()) {
@@ -699,15 +699,15 @@ TEST(txn_gen, dummy_2) {
         Value v_read;
         txn_tx1a->read_column(query_row, 0, &v_read);
     } while(0);
-    // input: abort(tx1a)
+    // L221: abort(tx1a)
     txn_tx1a->abort();
     delete txn_tx1a;
-    // input: commit(tx1) -> ok
+    // L223: commit(tx1) -> ok
     EXPECT_TRUE(txn_tx1->commit());
     delete txn_tx1;
-    // input: begin(tx2)
+    // L225: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
-    // input: read(tx2, student, 1, 1) = "alice" -> ok
+    // L226: read(tx2, student, 1, 1) = "alice" -> ok
     do {
         ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
         EXPECT_TRUE(result_set.has_next());
@@ -719,10 +719,10 @@ TEST(txn_gen, dummy_2) {
         EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
-    // input: commit(tx2)
+    // L227: commit(tx2)
     txn_tx2->commit();
     delete txn_tx2;
-    // input: end_test
+    // L229: end_test
     delete tbl_student;
 }
 

@@ -48,11 +48,13 @@ using namespace mdb;
 """)
 
     with open(input_fpath) as f:
+        line_counter = 0
         for line in f:
+            line_counter += 1
             line = line.strip()
             if line.startswith("#") or line == "":
                 continue
-            g.writeln("// input: %s" % line)
+            g.writeln("// L%d: %s" % (line_counter, line))
 
             if line.startswith("table"):
                 sp = proper_split(line[5:])
