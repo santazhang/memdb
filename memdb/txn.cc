@@ -481,9 +481,6 @@ ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
 }
 
 
-// inserts_next_ = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
-// inserts_end_ = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
-
 ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
     verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
     if (tbl->rtti() == TBL_UNSORTED) {
