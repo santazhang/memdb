@@ -109,6 +109,8 @@ public:
         return this->query(tbl, kv.get_blob());
     }
     virtual ResultSet query(Table* tbl, const MultiBlob& mb) = 0;
+
+    virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY) = 0;
 };
 
 
@@ -155,6 +157,8 @@ public:
     virtual bool remove_row(Table* tbl, Row* row);
 
     ResultSet query(Table* tbl, const MultiBlob& mb);
+
+    virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY);
 };
 
 class TxnMgrUnsafe: public TxnMgr {
@@ -195,7 +199,7 @@ struct table_row_pair {
 class Txn2PL: public Txn {
     int outcome_;
     std::unordered_map<Row*, std::vector<std::pair<int, Value>>> updates_;
-    std::set<table_row_pair> inserts_;
+    std::multiset<table_row_pair> inserts_;
     std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
     std::multimap<Row*, int> locks_;
 
@@ -223,6 +227,8 @@ public:
     virtual bool remove_row(Table* tbl, Row* row);
 
     ResultSet query(Table* tbl, const MultiBlob& mb);
+
+    virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY);
 };
 
 class TxnMgr2PL: public TxnMgr {

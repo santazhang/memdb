@@ -35,6 +35,7 @@ typedef enum {
     TXN_ABORT,
     TXN_COMMIT,
 
+    ORD_ANY,
     ORD_ASC,
     ORD_DESC,
 } symbol_t;

@@ -24,17 +24,6 @@ static void print_table(UnsortedTable* tbl) {
     }
 }
 
-static void print_result(const Schema* sch, SortedTable::Cursor cur) {
-    while (cur) {
-        ostringstream ostr;
-        Row* r = cur.next();
-        for (auto& col : *sch) {
-            ostr << " " << r->get_column(col.id);
-        }
-        Log::info("row:%s", ostr.str().c_str());
-    }
-}
-
 static void print_table(SortedTable* tbl) {
     const Schema* sch = tbl->schema();
     SortedTable::Cursor cur = tbl->all();

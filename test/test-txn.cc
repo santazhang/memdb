@@ -2,6 +2,8 @@
 #include "memdb/txn.h"
 #include "memdb/table.h"
 
+#include "test-helper.h"
+
 using namespace std;
 using namespace base;
 using namespace mdb;
@@ -183,4 +185,67 @@ TEST(txn, query_in_unsorted_table_staging_area_while_deleting) {
 
     delete student_tbl;
     delete schema;
+}
+
+static int result_set_size(ResultSet rs) {
+    int size = 0;
+    while (rs) {
+        rs.next();
+        size++;
+    }
+    return size;
+}
+
+TEST(txn, query_sorted_table_ordering) {
+    TxnMgr2PL txnmgr;
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    Table* student_tbl = new SortedTable(&schema);
+    txnmgr.reg_table("student", student_tbl);
+
+    Txn* txn1 = txnmgr.start(1);
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice") };
+        FineLockedRow* r = FineLockedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("bob") };
+        FineLockedRow* r = FineLockedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("calvin") };
+        FineLockedRow* r = FineLockedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 2), Value("david") };
+        FineLockedRow* r = FineLockedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 2), Value("elvis") };
+        FineLockedRow* r = FineLockedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    ResultSet rs = txn1->query(student_tbl, Value(i32(3)));
+    print_result(&schema, rs);
+    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(0)))), 0);
+    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(1)))), 3);
+    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(2)))), 2);
+    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(3)))), 0);
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(0)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(1)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(2)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(3)))));
+    Log::debug("---");
+    print_result(&schema, txn1->all(student_tbl));
+    EXPECT_EQ(result_set_size(txn1->all(student_tbl)), 5);
+    EXPECT_TRUE(rows_are_sorted(txn1->all(student_tbl)));
+    txn1->commit();
+
+    delete student_tbl;
 }

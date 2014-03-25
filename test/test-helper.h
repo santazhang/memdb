@@ -1,7 +1,10 @@
 #pragma once
 
+#include <sstream>
+
 #include "base/all.h"
 #include "memdb/row.h"
+#include "memdb/schema.h"
 
 template <class T>
 void report_qps(const char* action, T n_ops, double duration) {
@@ -11,6 +14,9 @@ void report_qps(const char* action, T n_ops, double duration) {
 
 template <class EnumeratorOfRows>
 bool rows_are_sorted(EnumeratorOfRows rows, mdb::symbol_t order = mdb::symbol_t::ORD_ASC) {
+    if (order == mdb::symbol_t::ORD_ANY) {
+        return true;
+    }
     verify(order == mdb::symbol_t::ORD_ASC || order == mdb::symbol_t::ORD_DESC);
     if (!rows.has_next()) {
         return true;
@@ -29,4 +35,17 @@ bool rows_are_sorted(EnumeratorOfRows rows, mdb::symbol_t order = mdb::symbol_t:
         }
     }
     return true;
+}
+
+
+template <class EnumeratorOfRows>
+static void print_result(const mdb::Schema* sch, EnumeratorOfRows rows) {
+    while (rows) {
+        std::ostringstream ostr;
+        mdb::Row* r = rows.next();
+        for (auto& col : *sch) {
+            ostr << " " << r->get_column(col.id);
+        }
+        base::Log::info("row:%s", ostr.str().c_str());
+    }
 }

@@ -174,7 +174,7 @@ public:
         return query_lt(SortedMultiKey(mb, schema_), order);
     }
     Cursor query_lt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
-        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         auto bound = rows_.lower_bound(smk);
         if (order == symbol_t::ORD_ASC) {
             return Cursor(rows_.begin(), bound);
@@ -190,7 +190,7 @@ public:
         return query_gt(SortedMultiKey(mb, schema_), order);
     }
     Cursor query_gt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
-        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         auto bound = rows_.upper_bound(smk);
         if (order == symbol_t::ORD_ASC) {
             return Cursor(bound, rows_.end());
@@ -206,7 +206,7 @@ public:
         return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_), order);
     }
     Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC) {
-        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         verify(low < high);
         auto low_bound = rows_.upper_bound(low);
         auto high_bound = rows_.lower_bound(high);
@@ -218,7 +218,7 @@ public:
     }
 
     Cursor all(symbol_t order = symbol_t::ORD_ASC) const {
-        verify(order == symbol_t::ORD_ASC || order == ORD_DESC);
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         if (order == symbol_t::ORD_ASC) {
             return Cursor(std::begin(rows_), std::end(rows_));
         } else {
@@ -415,7 +415,8 @@ public:
         return Cursor(rows_.query_in(low, high));
     }
 
-    Cursor all() const {
+    Cursor all(symbol_t order = symbol_t::ORD_ASC) const {
+        // TODO ordering
         return Cursor(rows_.all());
     }
 
