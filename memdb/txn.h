@@ -19,6 +19,7 @@ class UnsortedTable;
 class SortedTable;
 class SnapshotTable;
 class TxnMgr;
+class SortedMultiKey;
 
 typedef i64 txn_id_t;
 
@@ -110,6 +111,24 @@ public:
     }
     virtual ResultSet query(Table* tbl, const MultiBlob& mb) = 0;
 
+    ResultSet query_lt(Table* tbl, const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_lt(tbl, kv.get_blob(), order);
+    }
+    ResultSet query_lt(Table* tbl, const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC);
+    virtual ResultSet query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) = 0;
+
+    ResultSet query_gt(Table* tbl, const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_gt(tbl, kv.get_blob(), order);
+    }
+    ResultSet query_gt(Table* tbl, const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC);
+    virtual ResultSet query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) = 0;
+
+    ResultSet query_in(Table* tbl, const Value& low, const Value& high, symbol_t order = symbol_t::ORD_ASC) {
+        return query_in(tbl, low.get_blob(), high.get_blob(), order);
+    }
+    ResultSet query_in(Table* tbl, const MultiBlob& low, const MultiBlob& high, symbol_t order = symbol_t::ORD_ASC);
+    virtual ResultSet query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC) = 0;
+
     virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY) = 0;
 };
 
@@ -157,6 +176,10 @@ public:
     virtual bool remove_row(Table* tbl, Row* row);
 
     ResultSet query(Table* tbl, const MultiBlob& mb);
+
+    virtual ResultSet query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    virtual ResultSet query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    virtual ResultSet query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC);
 
     virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY);
 };
@@ -227,6 +250,10 @@ public:
     virtual bool remove_row(Table* tbl, Row* row);
 
     ResultSet query(Table* tbl, const MultiBlob& mb);
+
+    virtual ResultSet query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    virtual ResultSet query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    virtual ResultSet query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC);
 
     virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY);
 };

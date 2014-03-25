@@ -64,6 +64,10 @@ public:
     bool operator >=(const SortedMultiKey& o) const {
         return compare(o) != -1;
     }
+
+    const MultiBlob& get_multi_blob() const {
+        return mb_;
+    }
 };
 
 class SortedTable: public Table {
@@ -384,39 +388,46 @@ public:
         return Cursor(rows_.query(smk));
     }
 
-    Cursor query_lt(const Value& kv) {
-        return query_lt(kv.get_blob());
+    Cursor query_lt(const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_lt(kv.get_blob(), order);
     }
-    Cursor query_lt(const MultiBlob& mb) {
-        return query_lt(SortedMultiKey(mb, schema_));
+    Cursor query_lt(const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC) {
+        return query_lt(SortedMultiKey(mb, schema_), order);
     }
-    Cursor query_lt(const SortedMultiKey& smk) {
+    Cursor query_lt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        // TODO ordering
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         return Cursor(rows_.query_lt(smk));
     }
 
-    Cursor query_gt(const Value& kv) {
-        return query_gt(kv.get_blob());
+    Cursor query_gt(const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_gt(kv.get_blob(), order);
     }
-    Cursor query_gt(const MultiBlob& mb) {
-        return query_gt(SortedMultiKey(mb, schema_));
+    Cursor query_gt(const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC) {
+        return query_gt(SortedMultiKey(mb, schema_), order);
     }
-    Cursor query_gt(const SortedMultiKey& smk) {
+    Cursor query_gt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        // TODO ordering
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         return Cursor(rows_.query_gt(smk));
     }
 
-    Cursor query_in(const Value& low, const Value& high) {
-        return query_in(low.get_blob(), high.get_blob());
+    Cursor query_in(const Value& low, const Value& high, symbol_t order = symbol_t::ORD_ASC) {
+        return query_in(low.get_blob(), high.get_blob(), order);
     }
-    Cursor query_in(const MultiBlob& low, const MultiBlob& high) {
-        return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_));
+    Cursor query_in(const MultiBlob& low, const MultiBlob& high, symbol_t order = symbol_t::ORD_ASC) {
+        return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_), order);
     }
-    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high) {
+    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC) {
+        // TODO ordering
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         verify(low < high);
         return Cursor(rows_.query_in(low, high));
     }
 
     Cursor all(symbol_t order = symbol_t::ORD_ASC) const {
         // TODO ordering
+        verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         return Cursor(rows_.all());
     }
 

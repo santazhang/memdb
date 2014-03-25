@@ -24,6 +24,17 @@ SnapshotTable* Txn::get_snapshot_table(const std::string& tbl_name) const {
     return mgr_->get_snapshot_table(tbl_name);
 }
 
+ResultSet Txn::query_lt(Table* tbl, const MultiBlob& mb, symbol_t order /* =? */) {
+    return query_lt(tbl, SortedMultiKey(mb, tbl->schema()), order);
+}
+
+ResultSet Txn::query_gt(Table* tbl, const MultiBlob& mb, symbol_t order /* =? */) {
+    return query_gt(tbl, SortedMultiKey(mb, tbl->schema()), order);
+}
+
+ResultSet Txn::query_in(Table* tbl, const MultiBlob& low, const MultiBlob& high, symbol_t order /* =? */) {
+    return query_in(tbl, SortedMultiKey(low, tbl->schema()), SortedMultiKey(high, tbl->schema()), order);
+}
 
 
 UnsortedTable* TxnMgr::get_unsorted_table(const std::string& tbl_name) const {
@@ -95,6 +106,58 @@ ResultSet TxnUnsafe::query(Table* tbl, const MultiBlob& mb) {
         return ResultSet(nullptr);
     }
 }
+
+ResultSet TxnUnsafe::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+    // always sendback query result from raw table
+    if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_lt(smk, order));
+        return ResultSet(cursor);
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_lt(smk, order));
+        return ResultSet(cursor);
+    } else {
+        // range query only works on sorted and snapshot table
+        verify(tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+        return ResultSet(nullptr);
+    }
+}
+
+ResultSet TxnUnsafe::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+    // always sendback query result from raw table
+    if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_gt(smk, order));
+        return ResultSet(cursor);
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_gt(smk, order));
+        return ResultSet(cursor);
+    } else {
+        // range query only works on sorted and snapshot table
+        verify(tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+        return ResultSet(nullptr);
+    }
+}
+
+ResultSet TxnUnsafe::query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
+    // always sendback query result from raw table
+    if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_in(low, high, order));
+        return ResultSet(cursor);
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_in(low, high, order));
+        return ResultSet(cursor);
+    } else {
+        // range query only works on sorted and snapshot table
+        verify(tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+        return ResultSet(nullptr);
+    }
+}
+
 
 ResultSet TxnUnsafe::all(Table* tbl, symbol_t order /* =? */) {
     // always sendback query result from raw table
@@ -178,6 +241,7 @@ bool Txn2PL::commit() {
         it.table->insert(it.row);
     }
     for (auto& it : updates_) {
+        // TODO update on snapshot table (remove then insert)
         Row* row = it.first;
         for (auto& pair : it.second) {
             int column_id = pair.first;
@@ -481,45 +545,154 @@ ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
 }
 
 
+ResultSet Txn2PL::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+    verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
+
+    MergedCursor* merged_cursor = nullptr;
+    KeyOnlySearchRow key_search_row(tbl->schema(), &smk.get_multi_blob());
+
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, &key_search_row));
+
+    if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_lt(smk, order));
+
+        if (order == symbol_t::ORD_DESC) {
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
+
+        } else {
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+        }
+
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        // TODO ordering for snapshot table
+
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_lt(smk, order));
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+
+    } else {
+        // range query only works on sorted and snapshot table
+        verify(tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+    }
+
+    return ResultSet(merged_cursor);
+}
+
+ResultSet Txn2PL::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+    verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
+
+    MergedCursor* merged_cursor = nullptr;
+    KeyOnlySearchRow key_search_row(tbl->schema(), &smk.get_multi_blob());
+
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, &key_search_row));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+
+    if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_gt(smk, order));
+
+        if (order == symbol_t::ORD_DESC) {
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
+
+        } else {
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+        }
+
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        // TODO ordering for snapshot table
+
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_gt(smk, order));
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+
+    } else {
+        // range query only works on sorted and snapshot table
+        verify(tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+    }
+
+    return ResultSet(merged_cursor);
+}
+
+ResultSet Txn2PL::query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
+    verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
+
+    MergedCursor* merged_cursor = nullptr;
+    KeyOnlySearchRow key_search_row_low(tbl->schema(), &low.get_multi_blob());
+    KeyOnlySearchRow key_search_row_high(tbl->schema(), &high.get_multi_blob());
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, &key_search_row_low));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, &key_search_row_high));
+
+    if (tbl->rtti() == TBL_SORTED) {
+        SortedTable* t = (SortedTable *) tbl;
+        SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_in(low, high, order));
+
+        if (order == symbol_t::ORD_DESC) {
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
+
+        } else {
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+        }
+
+    } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        // TODO ordering for snapshot table
+
+        SnapshotTable* t = (SnapshotTable *) tbl;
+        SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_in(low, high, order));
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+
+    } else {
+        // range query only works on sorted and snapshot table
+        verify(tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
+    }
+
+    return ResultSet(merged_cursor);
+}
+
+
 ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
     verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
+    MergedCursor* merged_cursor = nullptr;
+
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+
     if (tbl->rtti() == TBL_UNSORTED) {
         // unsorted tables only accept ORD_ANY
         verify(order == symbol_t::ORD_ANY);
         UnsortedTable* t = (UnsortedTable *) tbl;
         UnsortedTable::Cursor* cursor = new UnsortedTable::Cursor(t->all());
-        auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
-        auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
-        return ResultSet(merged_cursor);
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+
     } else if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->all(order));
         if (order == symbol_t::ORD_DESC) {
-            auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
-            auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
             auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
             auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
-            MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
-            return ResultSet(merged_cursor);
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
         } else {
-            auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
-            auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
-            MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
-            return ResultSet(merged_cursor);
+            merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
         }
+
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
         // TODO ordering for snapshot table
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->all(order));
-        auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
-        auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
-        return ResultSet(merged_cursor);
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+
     } else {
         verify(tbl->rtti() == TBL_UNSORTED || tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
-        return ResultSet(nullptr);
     }
+
+    return ResultSet(merged_cursor);
 }
 
 
