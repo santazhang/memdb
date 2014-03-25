@@ -222,7 +222,13 @@ TEST(txn, query_sorted_table_ordering) {
         FineLockedRow* r = FineLockedRow::create(&schema, row);
         txn1->insert_row(student_tbl, r);
     }
-    ResultSet rs = txn1->query(student_tbl, Value(i32(3)));
+    ResultSet rs = txn1->query(student_tbl, Value(i32(1)));
+    print_result(rs);
+    Log::debug("---");
+    rs = txn1->query(student_tbl, Value(i32(2)));
+    print_result(rs);
+    Log::debug("---");
+    rs = txn1->query(student_tbl, Value(i32(3)));
     print_result(rs);
     EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(0)))), 0);
     EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(1)))), 3);
@@ -236,6 +242,10 @@ TEST(txn, query_sorted_table_ordering) {
     print_result(txn1->all(student_tbl));
     EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 5);
     EXPECT_TRUE(rows_are_sorted(txn1->all(student_tbl)));
+    Log::debug("---");
+    print_result(txn1->all(student_tbl, symbol_t::ORD_DESC));
+    EXPECT_EQ(enumerator_count(txn1->all(student_tbl, symbol_t::ORD_DESC)), 5);
+    EXPECT_TRUE(rows_are_sorted(txn1->all(student_tbl, symbol_t::ORD_DESC), symbol_t::ORD_DESC));
     txn1->commit();
     delete txn1;
 

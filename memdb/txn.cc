@@ -320,19 +320,57 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
 }
 
 
+// for helping locating in inserts set
+class KeyOnlySearchRow: public Row {
+    const MultiBlob* mb_;
+public:
+    KeyOnlySearchRow(const Schema* schema, const MultiBlob* mb): mb_(mb) {
+        schema_ = schema;
+    }
+    virtual MultiBlob get_key() const {
+        return *mb_;
+    }
+};
+
+
 // merge query result in staging area and real table data
 class MergedCursor: public NoCopy, public Enumerator<const Row*> {
     Table* tbl_;
     Enumerator<const Row*>* cursor_;
 
-    const std::multiset<table_row_pair>& inserts_;
+    bool reverse_order_;
     std::multiset<table_row_pair>::const_iterator inserts_next_, inserts_end_;
+    std::multiset<table_row_pair>::const_reverse_iterator r_inserts_next_, r_inserts_end_;
 
     const std::unordered_set<table_row_pair, table_row_pair::hash>& removes_;
 
     bool cached_;
     const Row* cached_next_;
     const Row* next_candidate_;
+
+    bool insert_has_next() {
+        if (reverse_order_) {
+            return r_inserts_next_ != r_inserts_end_;
+        } else {
+            return inserts_next_ != inserts_end_;
+        }
+    }
+
+    const Row* insert_get_next() {
+        if (reverse_order_) {
+            return r_inserts_next_->row;
+        } else {
+            return inserts_next_->row;
+        }
+    }
+
+    void insert_advance_next() {
+        if (reverse_order_) {
+            ++r_inserts_next_;
+        } else {
+            ++inserts_next_;
+        }
+    }
 
     bool prefetch_next() {
         verify(cached_ == false);
@@ -349,22 +387,22 @@ class MergedCursor: public NoCopy, public Enumerator<const Row*> {
 
         // check if there's data in inserts_
         if (next_candidate_ == nullptr) {
-            if (inserts_next_ != inserts_end_) {
+            if (insert_has_next()) {
                 cached_ = true;
-                cached_next_ = inserts_next_->row;
-                ++inserts_next_;
+                cached_next_ = insert_get_next();
+                insert_advance_next();
             }
         } else {
             // next_candidate_ != nullptr
             // check which is next: next_candidate_, or next in inserts_
             cached_ = true;
-            if (inserts_next_ != inserts_end_) {
-                if (next_candidate_ < inserts_next_->row) {
+            if (insert_has_next()) {
+                if (next_candidate_ < insert_get_next()) {
                     cached_next_ = next_candidate_;
                     next_candidate_ = nullptr;
                 } else {
-                    cached_next_ = inserts_next_->row;
-                    ++inserts_next_;
+                    cached_next_ = insert_get_next();
+                    insert_advance_next();
                 }
             } else {
                 cached_next_ = next_candidate_;
@@ -378,13 +416,21 @@ class MergedCursor: public NoCopy, public Enumerator<const Row*> {
 public:
     MergedCursor(Table* tbl,
                  Enumerator<const Row*>* cursor,
-                 const std::multiset<table_row_pair>& inserts,
+                 const std::multiset<table_row_pair>::const_iterator& inserts_begin,
+                 const std::multiset<table_row_pair>::const_iterator& inserts_end,
                  const std::unordered_set<table_row_pair, table_row_pair::hash>& removes)
-        : tbl_(tbl), cursor_(cursor), inserts_(inserts), removes_(removes),
-          cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {
-              inserts_next_ = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
-              inserts_end_ = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
-        }
+        : tbl_(tbl), cursor_(cursor), reverse_order_(false),
+          inserts_next_(inserts_begin), inserts_end_(inserts_end), removes_(removes),
+          cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {}
+
+    MergedCursor(Table* tbl,
+                 Enumerator<const Row*>* cursor,
+                 const std::multiset<table_row_pair>::const_reverse_iterator& inserts_rbegin,
+                 const std::multiset<table_row_pair>::const_reverse_iterator& inserts_rend,
+                 const std::unordered_set<table_row_pair, table_row_pair::hash>& removes)
+        : tbl_(tbl), cursor_(cursor), reverse_order_(true),
+          r_inserts_next_(inserts_rbegin), r_inserts_end_(inserts_rend), removes_(removes),
+          cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {}
 
     ~MergedCursor() {
         delete cursor_;
@@ -409,45 +455,69 @@ public:
 
 
 ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
+    MergedCursor* merged_cursor = nullptr;
+    KeyOnlySearchRow key_search_row(tbl->schema(), &mb);
+
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, &key_search_row));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, &key_search_row));
+
     if (tbl->rtti() == TBL_UNSORTED) {
         UnsortedTable* t = (UnsortedTable *) tbl;
         UnsortedTable::Cursor* cursor = new UnsortedTable::Cursor(t->query(mb));
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
-        return ResultSet(merged_cursor);
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
     } else if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query(mb));
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
-        return ResultSet(merged_cursor);
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query(mb));
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
-        return ResultSet(merged_cursor);
+        merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
     } else {
         verify(tbl->rtti() == TBL_UNSORTED || tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);
-        return ResultSet(nullptr);
     }
+
+    return ResultSet(merged_cursor);
 }
 
 
+// inserts_next_ = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+// inserts_end_ = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+
 ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
+    verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
     if (tbl->rtti() == TBL_UNSORTED) {
         // unsorted tables only accept ORD_ANY
         verify(order == symbol_t::ORD_ANY);
         UnsortedTable* t = (UnsortedTable *) tbl;
         UnsortedTable::Cursor* cursor = new UnsortedTable::Cursor(t->all());
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
+        auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+        auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
         return ResultSet(merged_cursor);
     } else if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->all(order));
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
-        return ResultSet(merged_cursor);
+        if (order == symbol_t::ORD_DESC) {
+            auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+            auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
+            MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
+            return ResultSet(merged_cursor);
+        } else {
+            auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+            auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+            MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
+            return ResultSet(merged_cursor);
+        }
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
+        // TODO ordering for snapshot table
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->all(order));
-        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_, removes_);
+        auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+        auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
+        MergedCursor* merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
         return ResultSet(merged_cursor);
     } else {
         verify(tbl->rtti() == TBL_UNSORTED || tbl->rtti() == TBL_SORTED || tbl->rtti() == TBL_SNAPSHOT);

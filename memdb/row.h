@@ -88,7 +88,7 @@ public:
     Value get_column(const std::string& col_name) const {
         return get_column(schema_->get_column_id(col_name));
     }
-    MultiBlob get_key() const;
+    virtual MultiBlob get_key() const;
 
     blob get_blob(int column_id) const;
     blob get_blob(const std::string& col_name) const {
