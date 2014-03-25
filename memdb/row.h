@@ -58,7 +58,7 @@ protected:
     static Row* create(Row* raw_row, Schema* schema, const std::vector<const Value*>& values);
 
 public:
-    ~Row();
+    virtual ~Row();
 
     virtual symbol_t rtti() const {
         return ROW_BASIC;

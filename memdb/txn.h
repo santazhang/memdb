@@ -67,6 +67,7 @@ protected:
     Txn(const TxnMgr* mgr, txn_id_t txnid): mgr_(mgr),  txnid_(txnid) {}
 
 public:
+    virtual ~Txn() {}
     txn_id_t id() const {
         return txnid_;
     }
@@ -137,6 +138,8 @@ class TxnMgr: public NoCopy {
     std::map<std::string, Table*> tables_;
 
 public:
+
+    virtual ~TxnMgr() {}
 
     virtual Txn* start(txn_id_t txnid) = 0;
 
@@ -220,6 +223,8 @@ struct table_row_pair {
 
 
 class Txn2PL: public Txn {
+protected:
+
     int outcome_;
     std::unordered_map<Row*, std::vector<std::pair<int, Value>>> updates_;
     std::multiset<table_row_pair> inserts_;
@@ -262,6 +267,19 @@ class TxnMgr2PL: public TxnMgr {
 public:
     virtual Txn* start(txn_id_t txnid) {
         return new Txn2PL(this, txnid);
+    }
+};
+
+// TODO
+class TxnOCC: public Txn2PL {
+public:
+    TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid) {}
+};
+
+class TxnMgrOCC: public TxnMgr {
+public:
+    virtual Txn* start(txn_id_t txnid) {
+        return new TxnOCC(this, txnid);
     }
 };
 
