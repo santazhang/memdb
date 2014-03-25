@@ -36,19 +36,19 @@ TEST(utils, inthash64) {
 }
 
 template<class T>
-T& get_value(T& v, std::true_type) {
+const T& get_value(const T& v, std::true_type) {
     return v;
 }
 
 template<class T>
-typename T::second_type& get_value(T& v, std::false_type) {
+const typename T::second_type& get_value(const T& v, std::false_type) {
     return v.second;
 }
 
 template <class Container>
 static void print_container_values(const Container& container) {
-    for (auto it : container) {
-        cout << "value in container: " << get_value(it, std::is_same<int, decltype(it)>()) << endl;
+    for (auto it = container.begin(); it != container.end(); ++it) {
+        cout << "value in container: " << get_value(*it, std::is_same<int, typename Container::value_type>()) << endl;
     }
 }
 
