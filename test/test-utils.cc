@@ -1,8 +1,15 @@
+#include <iostream>
+#include <vector>
+#include <list>
+#include <set>
+#include <map>
+
 #include "memdb/utils.h"
 #include "base/all.h"
 
 using namespace base;
 using namespace mdb;
+using namespace std;
 
 TEST(utils, stringhash32) {
     EXPECT_EQ(stringhash32("hello"), stringhash32("hello"));
@@ -26,4 +33,30 @@ TEST(utils, inthash64) {
     EXPECT_EQ(inthash64(1987, 1001), inthash64(1987, 1001));
     EXPECT_NEQ(inthash64(1987, 1989), inthash64(1987, 1001));
     Log::debug("inthash64(1987, 1001) = %llu", inthash64(1987, 1001));
+}
+
+template<class T>
+T& get_value(T& v, std::true_type) {
+    return v;
+}
+
+template<class T>
+typename T::second_type& get_value(T& v, std::false_type) {
+    return v.second;
+}
+
+template <class Container>
+static void print_container_values(const Container& container) {
+    for (auto it : container) {
+        cout << "value in container: " << get_value(it, std::is_same<int, decltype(it)>()) << endl;
+    }
+}
+
+TEST(utils, value_enumerator) {
+    print_container_values(set<int>({1, 2, 3, 4}));
+    print_container_values(vector<int>({1, 2, 3, 4}));
+    map<int, int> m;
+    m[1] = 2;
+    m[3] = 4;
+    print_container_values(m);
 }
