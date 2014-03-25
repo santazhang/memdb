@@ -222,3 +222,22 @@ TEST(locked_row, fine_locked_row) {
 
     delete schema;
 }
+
+TEST(versioned_row, update_ver) {
+    Schema schema;
+    schema.add_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    vector<Value> row1 = { Value(1), Value("alice") };
+    VersionedRow* r1 = VersionedRow::create(&schema, row1);
+    EXPECT_EQ(r1->get_column_ver(0), 0);
+    EXPECT_EQ(r1->get_column_ver(1), 0);
+    ((Row *) r1)->update(0, i32(1987));
+    EXPECT_EQ(r1->get_column_ver(0), 1);
+    EXPECT_EQ(r1->get_column(0), Value(i32(1987)));
+    r1->update(1, "cynthia");
+    EXPECT_EQ(r1->get_column_ver(1), 1);
+    EXPECT_EQ(r1->get_column(1), Value("cynthia"));
+    delete r1;
+}
+

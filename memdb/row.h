@@ -42,9 +42,16 @@ class Row: public NoCopy {
 
     Table* tbl_;
 
-    void update_fixed(const Schema::column_info* col, void* ptr, int len);
-
 protected:
+
+    // override by VersionedRow
+    virtual void update_fixed(const Schema::column_info* col, void* ptr, int len) {
+        do_update_fixed(col, ptr, len);
+    }
+
+    void do_update_fixed(const Schema::column_info* col, void* ptr, int len);
+
+    void do_update(int column_id, const std::string& str);
 
     bool rdonly_;
     const Schema* schema_;
@@ -110,7 +117,12 @@ public:
         verify(info->type == Value::DOUBLE);
         update_fixed(info, &v, sizeof(v));
     }
-    void update(int column_id, const std::string& v);
+
+    // override by VersionedRow
+    virtual void update(int column_id, const std::string& str) {
+        do_update(column_id, str);
+    }
+
     void update(int column_id, const Value& v);
 
     void update(const std::string& col_name, i32 v) {
@@ -261,6 +273,52 @@ public:
         FineLockedRow* raw_row = new FineLockedRow();
         raw_row->init_lock(schema->columns_count());
         return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
+    }
+};
+
+
+class VersionedRow: public Row {
+    version_t* ver_;
+    void init_ver(int n_columns) {
+        ver_ = new version_t[n_columns];
+        memset(ver_, 0, sizeof(version_t) * n_columns);
+    }
+
+protected:
+
+    virtual void update_fixed(const Schema::column_info* col, void* ptr, int len) {
+        do_update_fixed(col, ptr, len);
+        ver_[col->id]++;
+    }
+
+public:
+    ~VersionedRow() {
+        delete[] ver_;
+    }
+
+    virtual void update(int column_id, const std::string& str) {
+        do_update(column_id, str);
+        ver_[column_id]++;
+    }
+
+    version_t get_column_ver(int column_id) const {
+        return ver_[column_id];
+    }
+
+    static VersionedRow* create(Schema* schema, const std::map<std::string, Value>& values);
+    static VersionedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+
+    template <class Container>
+    static VersionedRow* create(Schema* schema, const Container& values) {
+        verify(values.size() == schema->columns_count());
+        std::vector<const Value*> values_ptr;
+        values_ptr.reserve(values.size());
+        for (auto& it: values) {
+            values_ptr.push_back(&it);
+        }
+        VersionedRow* raw_row = new VersionedRow();
+        raw_row->init_ver(schema->columns_count());
+        return (VersionedRow * ) Row::create(raw_row, schema, values_ptr);
     }
 };
 

@@ -8,8 +8,6 @@
 
 namespace mdb {
 
-typedef int64_t version_t;
-
 template <class Value>
 struct versioned_value {
     const version_t created_at;
