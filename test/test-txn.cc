@@ -187,15 +187,6 @@ TEST(txn, query_in_unsorted_table_staging_area_while_deleting) {
     delete schema;
 }
 
-static int result_set_size(ResultSet rs) {
-    int size = 0;
-    while (rs) {
-        rs.next();
-        size++;
-    }
-    return size;
-}
-
 TEST(txn, query_sorted_table_ordering) {
     TxnMgr2PL txnmgr;
     Schema schema;
@@ -232,18 +223,18 @@ TEST(txn, query_sorted_table_ordering) {
         txn1->insert_row(student_tbl, r);
     }
     ResultSet rs = txn1->query(student_tbl, Value(i32(3)));
-    print_result(&schema, rs);
-    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(0)))), 0);
-    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(1)))), 3);
-    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(2)))), 2);
-    EXPECT_EQ(result_set_size(txn1->query(student_tbl, Value(i32(3)))), 0);
+    print_result(rs);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(0)))), 0);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(1)))), 3);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(2)))), 2);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(3)))), 0);
     EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(0)))));
     EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(1)))));
     EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(2)))));
     EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(3)))));
     Log::debug("---");
-    print_result(&schema, txn1->all(student_tbl));
-    EXPECT_EQ(result_set_size(txn1->all(student_tbl)), 5);
+    print_result(txn1->all(student_tbl));
+    EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 5);
     EXPECT_TRUE(rows_are_sorted(txn1->all(student_tbl)));
     txn1->commit();
     delete txn1;
