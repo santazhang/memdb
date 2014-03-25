@@ -59,7 +59,116 @@ begin_test()[2pl, unsorted, fine]
 
 end_test
 
+begin_test()[2pl, unsorted, coarse]
 
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0) -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+        write(tx2, student, 1, 1, "bob") -> ok
+    commit(tx2)
+
+    begin(tx3)
+        read(tx3, student, 1, 1) = "bob" -> ok
+
+    begin(tx4)
+        read(tx4, student, 1, 1) = "bob" -> ok
+    abort(tx4)
+
+        remove(tx3, student, 1) -> ok
+
+    commit(tx3)
+
+end_test
+
+
+begin_test()[2pl, sorted, coarse]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0) -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+        write(tx2, student, 1, 1, "bob") -> ok
+    commit(tx2)
+
+    begin(tx3)
+        read(tx3, student, 1, 1) = "bob" -> ok
+
+    begin(tx4)
+        read(tx4, student, 1, 1) = "bob" -> ok
+    abort(tx4)
+
+        remove(tx3, student, 1) -> ok
+
+    commit(tx3)
+
+end_test
+
+begin_test()[2pl, sorted, fine]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0) -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+        write(tx2, student, 1, 1, "bob") -> ok
+    commit(tx2)
+
+    begin(tx3)
+        read(tx3, student, 1, 1) = "bob" -> ok
+
+    begin(tx4)
+        read(tx4, student, 1, 1) = "bob" -> ok
+    abort(tx4)
+
+        remove(tx3, student, 1) -> ok
+
+    commit(tx3)
+
+end_test
+
+
+begin_test()[2pl, sorted, fine]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        remove(tx1a, student, 1) -> fail
+        write(tx1a, student, 1, 1, "santa") -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+    commit(tx2)
+
+end_test
 
 
 begin_test()[2pl, unsorted, fine]
@@ -84,6 +193,24 @@ end_test
 
 
 begin_test(dummy)[2pl, unsorted, coarse]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob")
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0)
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+    commit(tx2)
+
+end_test
+
+begin_test(dummy_2)[2pl, sorted, coarse]
 
     begin(tx1)
         insert(tx1, student, 1, "alice") -> ok

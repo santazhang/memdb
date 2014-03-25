@@ -84,6 +84,8 @@ using namespace mdb;
                         txnmgr_type = "TxnMgr2PL"
                     elif s == "unsorted":
                         table_type = "UnsortedTable"
+                    elif s == "sorted":
+                        table_type = "SortedTable"
                     elif s == "fine":
                         row_type = "FineLockedRow"
                     elif s == "coarse":
