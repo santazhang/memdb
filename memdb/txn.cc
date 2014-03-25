@@ -552,7 +552,7 @@ ResultSet Txn2PL::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order
     KeyOnlySearchRow key_search_row(tbl->schema(), &smk.get_multi_blob());
 
     auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
-    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, &key_search_row));
+    auto inserts_end = inserts_.lower_bound(table_row_pair(tbl, &key_search_row));
 
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
@@ -588,7 +588,7 @@ ResultSet Txn2PL::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order
     MergedCursor* merged_cursor = nullptr;
     KeyOnlySearchRow key_search_row(tbl->schema(), &smk.get_multi_blob());
 
-    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, &key_search_row));
+    auto inserts_begin = inserts_.upper_bound(table_row_pair(tbl, &key_search_row));
     auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
 
     if (tbl->rtti() == TBL_SORTED) {
@@ -625,8 +625,8 @@ ResultSet Txn2PL::query_in(Table* tbl, const SortedMultiKey& low, const SortedMu
     MergedCursor* merged_cursor = nullptr;
     KeyOnlySearchRow key_search_row_low(tbl->schema(), &low.get_multi_blob());
     KeyOnlySearchRow key_search_row_high(tbl->schema(), &high.get_multi_blob());
-    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, &key_search_row_low));
-    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, &key_search_row_high));
+    auto inserts_begin = inserts_.upper_bound(table_row_pair(tbl, &key_search_row_low));
+    auto inserts_end = inserts_.lower_bound(table_row_pair(tbl, &key_search_row_high));
 
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;

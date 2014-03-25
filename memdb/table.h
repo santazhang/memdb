@@ -180,10 +180,10 @@ public:
     Cursor query_lt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
         verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         auto bound = rows_.lower_bound(smk);
-        if (order == symbol_t::ORD_ASC) {
-            return Cursor(rows_.begin(), bound);
-        } else {
+        if (order == symbol_t::ORD_DESC) {
             return Cursor(reverse_iterator(bound), rows_.rend());
+        } else {
+            return Cursor(rows_.begin(), bound);
         }
     }
 
@@ -196,10 +196,10 @@ public:
     Cursor query_gt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
         verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         auto bound = rows_.upper_bound(smk);
-        if (order == symbol_t::ORD_ASC) {
-            return Cursor(bound, rows_.end());
-        } else {
+        if (order == symbol_t::ORD_DESC) {
             return Cursor(rows_.rbegin(), reverse_iterator(bound));
+        } else {
+            return Cursor(bound, rows_.end());
         }
     }
 
@@ -214,19 +214,19 @@ public:
         verify(low < high);
         auto low_bound = rows_.upper_bound(low);
         auto high_bound = rows_.lower_bound(high);
-        if (order == symbol_t::ORD_ASC) {
-            return Cursor(low_bound, high_bound);
-        } else {
+        if (order == symbol_t::ORD_DESC) {
             return Cursor(reverse_iterator(high_bound), reverse_iterator(low_bound));
+        } else {
+            return Cursor(low_bound, high_bound);
         }
     }
 
     Cursor all(symbol_t order = symbol_t::ORD_ASC) const {
         verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
-        if (order == symbol_t::ORD_ASC) {
-            return Cursor(std::begin(rows_), std::end(rows_));
-        } else {
+        if (order == symbol_t::ORD_DESC) {
             return Cursor(rows_.rbegin(), rows_.rend());
+        } else {
+            return Cursor(std::begin(rows_), std::end(rows_));
         }
     }
 
