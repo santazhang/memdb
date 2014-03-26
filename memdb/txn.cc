@@ -375,11 +375,13 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
             // row must either be FineLockedRow or CoarseLockedRow
             verify(row->rtti() == symbol_t::ROW_COARSE || row->rtti() == symbol_t::ROW_FINE);
         }
+        removes_.insert(TableRowPair(tbl, row));
     } else {
         inserts_.erase(it);
+        delete it->row;
     }
     updates_.erase(row);
-    removes_.insert(TableRowPair(tbl, row));
+
     return true;
 }
 
@@ -835,11 +837,13 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
             // row must either be FineLockedRow or CoarseLockedRow
             verify(row->rtti() == symbol_t::ROW_VERSIONED);
         }
+        removes_.insert(TableRowPair(tbl, row));
     } else {
         inserts_.erase(it);
+        delete it->row;
     }
     updates_.erase(row);
-    removes_.insert(TableRowPair(tbl, row));
+
     return true;
 }
 
