@@ -185,7 +185,7 @@ bool TableRowPair::operator < (const TableRowPair& o) const {
     if (table != o.table) {
         return table < o.table;
     } else {
-        if (cmp_content_ || o.cmp_content_) {
+        if (cmp_content_ && o.cmp_content_) {
             // we use ROW_MIN and ROW_MAX as special markers
             // this helps to get a range query on staged insert set
             if (row == ROW_MIN) {
@@ -353,9 +353,8 @@ bool Txn2PL::insert_row(Table* tbl, Row* row) {
 bool Txn2PL::remove_row(Table* tbl, Row* row) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
-
     // NOTE: finding row by pointer value instead of its content
-    auto it = inserts_.find(TableRowPair(tbl, row, true));
+    auto it = inserts_.find(TableRowPair(tbl, row, false));
     if (it == inserts_.end()) {
         // lock whole row, only if row is on real table
         if (row->rtti() == symbol_t::ROW_COARSE) {
@@ -821,7 +820,7 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
     // TODO handle the case where deleted rows are also beening accessed by other transactions
 
     // NOTE: finding row by pointer value instead of its content
-    auto it = inserts_.find(TableRowPair(tbl, row, true));
+    auto it = inserts_.find(TableRowPair(tbl, row, false));
     if (it == inserts_.end()) {
         if (row->rtti() == symbol_t::ROW_VERSIONED) {
             VersionedRow* v_row = (VersionedRow *) row;
