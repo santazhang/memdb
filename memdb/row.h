@@ -284,7 +284,7 @@ public:
     version_t get_column_ver(column_id_t column_id) const {
         return ver_[column_id];
     }
-    
+
     void incr_column_ver(column_id_t column_id) const {
         ver_[column_id]++;
     }

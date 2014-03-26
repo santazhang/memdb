@@ -40,16 +40,20 @@ bool rows_are_sorted(EnumeratorOfRows rows, mdb::symbol_t order = mdb::symbol_t:
 }
 
 
+inline void print_row(mdb::Row* r) {
+    const mdb::Schema* sch = r->schema();
+    std::ostringstream ostr;
+    for (auto& col : *sch) {
+        ostr << " " << r->get_column(col.id);
+    }
+    base::Log::info("row:%s", ostr.str().c_str());
+}
+
 template <class EnumeratorOfRows>
 void print_result(EnumeratorOfRows rows) {
     while (rows) {
-        std::ostringstream ostr;
         mdb::Row* r = rows.next();
-        const mdb::Schema* sch = r->schema();
-        for (auto& col : *sch) {
-            ostr << " " << r->get_column(col.id);
-        }
-        base::Log::info("row:%s", ostr.str().c_str());
+        print_row(r);
     }
 }
 

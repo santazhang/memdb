@@ -188,10 +188,13 @@ TEST(txn, 2pl_remove_dup_row_in_staging_area) {
         Log::debug("before remove");
         print_result(txn1->all(student_tbl));
         EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 4);
+        Log::debug("The row to remove is:");
+        print_row(r);
         txn1->remove_row(student_tbl, r);
         Log::debug("after remove");
         print_result(txn1->all(student_tbl));
         EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 3);
+        EXPECT_EQ(txn1->all(student_tbl).next()->get_column(1), Value("alice"));
     }
     txn1->commit();
 
