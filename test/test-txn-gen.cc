@@ -727,3 +727,129 @@ TEST(txn_gen, dummy_2) {
 }
 
 
+// L231: begin_test()[occ, unsorted, versioned]
+TEST(txn_gen, 7) {
+    TxnMgrOCC txnmgr;
+    Schema schema_student;
+    schema_student.add_key_column("id", Value::I32);
+    schema_student.add_column("name", Value::STR);
+    Table* tbl_student = new UnsortedTable(&schema_student);
+    txnmgr.reg_table("student", tbl_student);
+    // L232: begin(tx1)
+    Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
+    // L233: insert(tx1, student, 1, "alice") -> ok
+    {
+        Row* insert_row = VersionedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
+        EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
+    }
+    // L234: commit(tx1)
+    txn_tx1->commit();
+    delete txn_tx1;
+    // L236: begin(tx2a)
+    Txn* txn_tx2a = txnmgr.start(2314037222045390847);
+    // L237: read(tx2a, student, 1, 1) -> "alice" -> ok
+    do {
+        ResultSet result_set = txn_tx2a->query(tbl_student, Value(i32(1)));
+        EXPECT_TRUE(result_set.has_next());
+        if (!result_set.has_next()) {
+            break;
+        }
+        Row* query_row = result_set.next();
+        Value v_read;
+        EXPECT_TRUE(txn_tx2a->read_column(query_row, 1, &v_read));
+    } while(0);
+    // L238: begin(tx2)
+    Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
+    // L239: write(tx2, student, 1, 1, "mad_alice") -> ok
+    do {
+        ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
+        EXPECT_TRUE(result_set.has_next());
+        if (!result_set.has_next()) {
+            break;
+        }
+        Row* query_row = result_set.next();
+        Value v_write("mad_alice");
+        EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
+    } while(0);
+    // L240: begin(tx2b)
+    Txn* txn_tx2b = txnmgr.start(2314037222045390844);
+    // L241: read(tx2a, student, 1, 1) -> "mad_alice" -> ok
+    do {
+        ResultSet result_set = txn_tx2a->query(tbl_student, Value(i32(1)));
+        EXPECT_TRUE(result_set.has_next());
+        if (!result_set.has_next()) {
+            break;
+        }
+        Row* query_row = result_set.next();
+        Value v_read;
+        EXPECT_TRUE(txn_tx2a->read_column(query_row, 1, &v_read));
+    } while(0);
+    // L242: commit(tx2) -> ok
+    EXPECT_TRUE(txn_tx2->commit());
+    delete txn_tx2;
+    // L243: commit(tx2b) -> ok
+    EXPECT_TRUE(txn_tx2b->commit());
+    delete txn_tx2b;
+    // L244: commit(tx2a) -> fail
+    EXPECT_FALSE(txn_tx2a->commit());
+    delete txn_tx2a;
+    // L245: end_test
+    delete tbl_student;
+}
+
+
+// L248: begin_test(crashy)[occ, sorted, versioned]
+TEST(txn_gen, crashy) {
+    TxnMgrOCC txnmgr;
+    Schema schema_student;
+    schema_student.add_key_column("id", Value::I32);
+    schema_student.add_column("name", Value::STR);
+    Table* tbl_student = new SortedTable(&schema_student);
+    txnmgr.reg_table("student", tbl_student);
+    // L249: begin(tx1)
+    Txn* txn_tx1 = txnmgr.start(-1495230934652649122);
+    // L250: insert(tx1, student, 1, "alice") -> ok
+    {
+        Row* insert_row = VersionedRow::create(&schema_student, vector<Value>({Value(i32(1)),Value("alice")}));
+        EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
+    }
+    // L251: commit(tx1) -> ok
+    EXPECT_TRUE(txn_tx1->commit());
+    delete txn_tx1;
+    // L253: begin(tx2)
+    Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
+    // L254: read(tx2, student, 1, 1) = "alice" -> ok
+    do {
+        ResultSet result_set = txn_tx2->query(tbl_student, Value(i32(1)));
+        EXPECT_TRUE(result_set.has_next());
+        if (!result_set.has_next()) {
+            break;
+        }
+        Row* query_row = result_set.next();
+        Value v_read;
+        EXPECT_TRUE(txn_tx2->read_column(query_row, 1, &v_read));
+        EXPECT_EQ(v_read, Value("alice"));
+    } while(0);
+    // L255: begin(tx3)
+    Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
+    // L256: remove(tx3, student, 1) -> ok
+    do {
+        ResultSet result_set = txn_tx3->query(tbl_student, Value(i32(1)));
+        EXPECT_TRUE(result_set.has_next());
+        if (!result_set.has_next()) {
+            break;
+        }
+        Row* query_row = result_set.next();
+        EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
+    } while(0);
+    // L257: commit(tx3) -> ok
+    EXPECT_TRUE(txn_tx3->commit());
+    delete txn_tx3;
+    // L260: commit(tx2) -> fail
+    EXPECT_FALSE(txn_tx2->commit());
+    delete txn_tx2;
+    // L261: end_test
+    delete tbl_student;
+}
+
+

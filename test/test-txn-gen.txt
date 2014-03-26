@@ -227,3 +227,35 @@ begin_test(dummy_2)[2pl, sorted, coarse]
     commit(tx2)
 
 end_test
+
+begin_test()[occ, unsorted, versioned]
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+    commit(tx1)
+
+    begin(tx2a)
+        read(tx2a, student, 1, 1) -> "alice" -> ok
+    begin(tx2)
+        write(tx2, student, 1, 1, "mad_alice") -> ok
+    begin(tx2b)
+        read(tx2a, student, 1, 1) -> "mad_alice" -> ok
+    commit(tx2) -> ok
+    commit(tx2b) -> ok
+    commit(tx2a) -> fail
+end_test
+
+
+begin_test(crashy)[occ, sorted, versioned]
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+    begin(tx3)
+        remove(tx3, student, 1) -> ok
+    commit(tx3) -> ok
+    # verification of tx2 needs to access row1, which is already removed by committed tx3
+    # if row1 has been collected, this will SEGFAULT
+    commit(tx2) -> fail
+end_test

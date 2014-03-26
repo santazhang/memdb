@@ -92,6 +92,10 @@ using namespace mdb;
                         row_type = "FineLockedRow"
                     elif s == "coarse":
                         row_type = "CoarseLockedRow"
+                    elif s == "occ":
+                        txnmgr_type = "TxnMgrOCC"
+                    elif s == "versioned":
+                        row_type = "VersionedRow"
                     else:
                         raise Exception("cannot handle begin_test attribute: %s" % s)
                 g.writeln("TEST(txn_gen, %s) {" % test_name)
