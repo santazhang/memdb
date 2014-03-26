@@ -195,22 +195,26 @@ public:
 };
 
 
-struct table_row_pair {
+class TableRowPair {
+    // if we should compare row by its content, or compare by pointer value
+    const bool cmp_content_;
+
+public:
     Table* table;
     Row* row;
 
-    table_row_pair(Table* t, Row* r): table(t), row(r) {}
+    TableRowPair(Table* t, Row* r, bool cmp_content = true): cmp_content_(cmp_content), table(t), row(r) {}
 
     // NOTE: used by set, to do range query in insert_ set
-    bool operator < (const table_row_pair& o) const;
+    bool operator < (const TableRowPair& o) const;
 
     // NOTE: only used by unsorted_set, to lookup in removes_ set
-    bool operator == (const table_row_pair& o) const {
+    bool operator == (const TableRowPair& o) const {
         return table == o.table && row == o.row;
     }
 
     struct hash {
-        size_t operator() (const table_row_pair& p) const {
+        size_t operator() (const TableRowPair& p) const {
             size_t v1 = size_t(p.table);
             size_t v2 = size_t(p.row);
             return inthash64(v1, v2);
@@ -226,10 +230,10 @@ class Txn2PL: public Txn {
 protected:
 
     symbol_t outcome_;
-    std::unordered_map<Row*, std::vector<std::pair<column_id_t, Value>>> updates_;
-    std::multiset<table_row_pair> inserts_;
-    std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
-    std::multimap<Row*, column_id_t> locks_;
+    std::unordered_multimap<Row*, std::pair<column_id_t, Value>> updates_;
+    std::multiset<TableRowPair> inserts_;
+    std::unordered_set<TableRowPair, TableRowPair::hash> removes_;
+    std::unordered_multimap<Row*, column_id_t> locks_;
 
     void relese_resource();
 
@@ -271,10 +275,40 @@ public:
     }
 };
 
-// TODO
+
+struct row_column_pair {
+    Row* row;
+    column_id_t col_id;
+
+    row_column_pair(Row* r, column_id_t c): row(r), col_id(c) {}
+
+    bool operator == (const row_column_pair& o) const {
+        return row == o.row && col_id == o.col_id;
+    }
+
+    struct hash {
+        size_t operator() (const row_column_pair& p) const {
+            size_t v1 = size_t(p.row);
+            size_t v2 = size_t(p.col_id);
+            return inthash64(v1, v2);
+        }
+    };
+};
+
+
 class TxnOCC: public Txn2PL {
+    // when ever a read/write is performed, record its version
+    // check at commit time if all version values are not changed
+    std::unordered_map<row_column_pair, version_t, row_column_pair::hash> ver_check_;
 public:
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid) {}
+
+    virtual bool commit();
+
+    virtual bool read_column(Row* row, column_id_t col_id, Value* value);
+    virtual bool write_column(Row* row, column_id_t col_id, const Value& value);
+    virtual bool insert_row(Table* tbl, Row* row);
+    virtual bool remove_row(Table* tbl, Row* row);
 };
 
 class TxnMgrOCC: public TxnMgr {

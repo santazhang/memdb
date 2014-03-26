@@ -103,8 +103,10 @@ void SortedTable::remove(Row* row, bool do_free /* =? */) {
     while (it != query_range.second) {
         if (it->second == row) {
             it->second->set_table(nullptr);
-            remove(it, do_free);
+            it = remove(it, do_free);
             break;
+        } else {
+            ++it;
         }
     }
 }
@@ -154,8 +156,10 @@ void UnsortedTable::remove(Row* row, bool do_free /* =? */) {
     while (it != query_range.second) {
         if (it->second == row) {
             it->second->set_table(nullptr);
-            remove(it, do_free);
+            it = remove(it, do_free);
             break;
+        } else {
+            ++it;
         }
     }
 }

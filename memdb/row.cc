@@ -127,7 +127,7 @@ blob Row::get_blob(int column_id) const {
     return b;
 }
 
-void Row::do_update_fixed(const Schema::column_info* col, void* ptr, int len) {
+void Row::update_fixed(const Schema::column_info* col, void* ptr, int len) {
     verify(!rdonly_);
     // check if really updating (new data!), and if necessary to remove/insert into table
     bool re_insert = false;
@@ -153,7 +153,7 @@ void Row::do_update_fixed(const Schema::column_info* col, void* ptr, int len) {
     }
 }
 
-void Row::do_update(int column_id, const std::string& v) {
+void Row::update(int column_id, const std::string& v) {
     verify(!rdonly_);
     const Schema::column_info* col = schema_->get_column_info(column_id);
     verify(col->type == Value::STR);

@@ -26,6 +26,7 @@ typedef enum {
     ROW_BASIC,
     ROW_COARSE,
     ROW_FINE,
+    ROW_VERSIONED,
 
     TBL_SORTED,
     TBL_UNSORTED,

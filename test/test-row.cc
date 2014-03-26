@@ -233,10 +233,8 @@ TEST(versioned_row, update_ver) {
     EXPECT_EQ(r1->get_column_ver(0), 0);
     EXPECT_EQ(r1->get_column_ver(1), 0);
     ((Row *) r1)->update(0, i32(1987));
-    EXPECT_EQ(r1->get_column_ver(0), 1);
     EXPECT_EQ(r1->get_column(0), Value(i32(1987)));
     r1->update(1, "cynthia");
-    EXPECT_EQ(r1->get_column_ver(1), 1);
     EXPECT_EQ(r1->get_column(1), Value("cynthia"));
     delete r1;
 }

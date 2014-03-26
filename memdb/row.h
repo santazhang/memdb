@@ -44,14 +44,7 @@ class Row: public NoCopy {
 
 protected:
 
-    // override by VersionedRow
-    virtual void update_fixed(const Schema::column_info* col, void* ptr, int len) {
-        do_update_fixed(col, ptr, len);
-    }
-
-    void do_update_fixed(const Schema::column_info* col, void* ptr, int len);
-
-    void do_update(int column_id, const std::string& str);
+    void update_fixed(const Schema::column_info* col, void* ptr, int len);
 
     bool rdonly_;
     const Schema* schema_;
@@ -68,7 +61,7 @@ public:
     virtual ~Row();
 
     virtual symbol_t rtti() const {
-        return ROW_BASIC;
+        return symbol_t::ROW_BASIC;
     }
 
     const Schema* schema() const {
@@ -117,12 +110,7 @@ public:
         verify(info->type == Value::DOUBLE);
         update_fixed(info, &v, sizeof(v));
     }
-
-    // override by VersionedRow
-    virtual void update(int column_id, const std::string& str) {
-        do_update(column_id, str);
-    }
-
+    void update(int column_id, const std::string& str);
     void update(int column_id, const Value& v);
 
     void update(const std::string& col_name, i32 v) {
@@ -185,7 +173,7 @@ class CoarseLockedRow: public Row {
 public:
 
     virtual symbol_t rtti() const {
-        return ROW_COARSE;
+        return symbol_t::ROW_COARSE;
     }
 
     bool rlock_row_by(lock_owner_t o) {
@@ -228,7 +216,7 @@ public:
     }
 
     virtual symbol_t rtti() const {
-        return ROW_FINE;
+        return symbol_t::ROW_FINE;
     }
 
     bool rlock_column_by(column_id_t column_id, lock_owner_t o) {
@@ -284,25 +272,21 @@ class VersionedRow: public Row {
         memset(ver_, 0, sizeof(version_t) * n_columns);
     }
 
-protected:
-
-    virtual void update_fixed(const Schema::column_info* col, void* ptr, int len) {
-        do_update_fixed(col, ptr, len);
-        ver_[col->id]++;
-    }
-
 public:
     ~VersionedRow() {
         delete[] ver_;
     }
 
-    virtual void update(column_id_t column_id, const std::string& str) {
-        do_update(column_id, str);
-        ver_[column_id]++;
+    virtual symbol_t rtti() const {
+        return symbol_t::ROW_VERSIONED;
     }
 
     version_t get_column_ver(column_id_t column_id) const {
         return ver_[column_id];
+    }
+    
+    void incr_column_ver(column_id_t column_id) const {
+        ver_[column_id]++;
     }
 
     static VersionedRow* create(Schema* schema, const std::map<std::string, Value>& values);

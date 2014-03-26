@@ -97,6 +97,107 @@ TEST(txn, basic_op_2pl) {
     delete schema;
 }
 
+TEST(txn, basic_op_occ) {
+    TxnMgrOCC txnmgr;
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+    Table* student_tbl = new UnsortedTable(&schema);
+
+    txnmgr.reg_table("student", student_tbl);
+
+    // test basic read write correctness
+    Txn* txn1 = txnmgr.start(1);
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    VersionedRow* r1 = VersionedRow::create(&schema, row1);
+    EXPECT_TRUE(txn1->insert_row(student_tbl, r1));
+    EXPECT_TRUE(txn1->commit());
+
+    Txn* txn2 = txnmgr.start(2);
+    Txn* txn3 = txnmgr.start(3);
+    vector<Value> row2 = { Value((i32) 2), Value("bob") };
+    VersionedRow* r2 = VersionedRow::create(&schema, row2);
+    vector<Value> row3 = { Value((i32) 3), Value("cynthia") };
+    VersionedRow* r3 = VersionedRow::create(&schema, row3);
+    EXPECT_TRUE(txn2->insert_row(student_tbl, r2));
+    EXPECT_TRUE(txn3->insert_row(student_tbl, r3));
+    EXPECT_TRUE(txn2->commit());
+    print_result(txn3->all(student_tbl));
+    EXPECT_TRUE(txn3->commit());
+
+    Txn* txn4 = txnmgr.start(4);
+    EXPECT_EQ(enumerator_count(txn4->all(student_tbl)), 3);
+    print_result(txn4->all(student_tbl));
+    txn4->remove_row(student_tbl, txn4->query(student_tbl, Value(i32(2))).next());
+    Log::debug("---");
+    print_result(txn4->all(student_tbl));
+    EXPECT_EQ(enumerator_count(txn4->all(student_tbl)), 2);
+    txn4->abort();
+
+    // now begin occ!
+    Txn* txn5 = txnmgr.start(5);
+    Value v1;
+    // r1, r2, r3 still in table
+    EXPECT_TRUE(txn5->read_column(r1, 1, &v1));
+    EXPECT_EQ(v1, Value("alice"));
+
+    Txn* txn6 = txnmgr.start(6);
+    Value v2("mad alice");
+    EXPECT_TRUE(txn6->write_column(r1, 1, v2));
+    EXPECT_FALSE(txn5->commit());
+    EXPECT_TRUE(txn6->commit());
+
+    delete txn1;
+    delete txn2;
+    delete txn3;
+    delete txn4;
+    delete txn5;
+    delete txn6;
+    delete student_tbl;
+}
+
+TEST(txn, 2pl_remove_dup_row_in_staging_area) {
+    TxnMgr2PL txnmgr;
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    Table* student_tbl = new SortedTable(&schema);
+    txnmgr.reg_table("student", student_tbl);
+
+    Txn* txn1 = txnmgr.start(1);
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice") };
+        CoarseLockedRow* r = CoarseLockedRow::create(&schema, row);
+        EXPECT_TRUE(txn1->insert_row(student_tbl, r));
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice_1") };
+        CoarseLockedRow* r = CoarseLockedRow::create(&schema, row);
+        EXPECT_TRUE(txn1->insert_row(student_tbl, r));
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice_2") };
+        CoarseLockedRow* r = CoarseLockedRow::create(&schema, row);
+        EXPECT_TRUE(txn1->insert_row(student_tbl, r));
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice_3") };
+        CoarseLockedRow* r = CoarseLockedRow::create(&schema, row);
+        EXPECT_TRUE(txn1->insert_row(student_tbl, r));
+        Log::debug("before remove");
+        print_result(txn1->all(student_tbl));
+        EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 4);
+        txn1->remove_row(student_tbl, r);
+        Log::debug("after remove");
+        print_result(txn1->all(student_tbl));
+        EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 3);
+    }
+    txn1->commit();
+
+    delete txn1;
+    delete student_tbl;
+}
 
 TEST(txn, query_in_unsorted_table_staging_area_while_inserting) {
     TxnMgr2PL txnmgr;
