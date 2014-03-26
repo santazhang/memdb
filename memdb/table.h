@@ -3,7 +3,6 @@
 #include <string>
 #include <list>
 #include <unordered_map>
-#include <memory>
 
 #include "value.h"
 #include "row.h"
@@ -328,10 +327,31 @@ private:
 };
 
 
+class RefCountedRow {
+    Row* row_;
+public:
+    RefCountedRow(Row* row): row_(row) {}
+    RefCountedRow(const RefCountedRow& r): row_((Row *) r.row_->ref_copy()) {}
+    ~RefCountedRow() {
+        row_->release();
+    }
+    const RefCountedRow& operator= (const RefCountedRow& r) {
+        if (this != &r) {
+            row_->release();
+            row_ = (Row *) r.row_->ref_copy();
+        }
+        return *this;
+    }
+    Row* get() const {
+        return row_;
+    }
+};
+
+
 class SnapshotTable: public Table {
 
     // indexed by key values
-    typedef snapshot_sortedmap<SortedMultiKey, std::shared_ptr<const Row>> table_type;
+    typedef snapshot_sortedmap<SortedMultiKey, RefCountedRow> table_type;
     table_type rows_;
 
 public:
@@ -345,8 +365,7 @@ public:
         }
         virtual const Row* next() {
             verify(has_next());
-            const std::shared_ptr<const Row>& row = range_.next().second;
-            return row.get();
+            return range_.next().second.get();
         }
         int count() {
             return range_.count();
@@ -376,7 +395,7 @@ public:
         // make the row readonly, to gaurante snapshot is not changed
         row->make_readonly();
 
-        insert_into_map(rows_, key, std::shared_ptr<const Row>(row));
+        insert_into_map(rows_, key, RefCountedRow(row));
     }
     Cursor query(const Value& kv) {
         return query(kv.get_blob());

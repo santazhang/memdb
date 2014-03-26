@@ -223,6 +223,9 @@ struct table_row_pair {
 
 
 class Txn2PL: public Txn {
+
+    void relese_resource();
+
 protected:
 
     symbol_t outcome_;
@@ -230,8 +233,6 @@ protected:
     std::multiset<table_row_pair> inserts_;
     std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
     std::unordered_multimap<Row*, column_id_t> locks_;
-
-    void relese_resource();
 
     bool debug_check_row_valid(Row* row) const {
         for (auto& it : removes_) {
@@ -296,9 +297,17 @@ class TxnOCC: public Txn2PL {
     // when ever a read/write is performed, record its version
     // check at commit time if all version values are not changed
     std::unordered_map<row_column_pair, version_t, row_column_pair::hash> ver_check_;
+
+    // incr refcount on a Row whenever it gets accessed
+    std::set<Row*> accessed_rows_;
+
+    void incr_row_refcount(Row* r);
+    void relese_resource();
+
 public:
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid) {}
 
+    virtual void abort();
     virtual bool commit();
 
     virtual bool read_column(Row* row, column_id_t col_id, Value* value);

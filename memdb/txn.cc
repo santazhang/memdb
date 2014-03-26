@@ -381,7 +381,7 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
         }
         removes_.insert(table_row_pair(tbl, row));
     } else {
-        delete it->row;
+        it->row->release();
         inserts_.erase(it);
     }
     updates_.erase(row);
@@ -702,7 +702,29 @@ ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
     return ResultSet(merged_cursor);
 }
 
+void TxnOCC::incr_row_refcount(Row* r) {
+    if (accessed_rows_.find(r) == accessed_rows_.end()) {
+        r->ref_copy();
+        accessed_rows_.insert(r);
+    }
+}
 
+void TxnOCC::relese_resource() {
+    updates_.clear();
+    inserts_.clear();
+    removes_.clear();
+
+    // release ref copy
+    for (auto& it: accessed_rows_) {
+        it->release();
+    }
+}
+
+void TxnOCC::abort() {
+    verify(outcome_ == symbol_t::NONE);
+    outcome_ = symbol_t::TXN_ABORT;
+    relese_resource();
+}
 
 bool TxnOCC::commit() {
     verify(outcome_ == symbol_t::NONE);
@@ -732,7 +754,6 @@ bool TxnOCC::commit() {
     }
     for (auto& it : removes_) {
         // remove the locks since the row has gone already
-        locks_.erase(it.row);
         it.table->remove(it.row);
     }
     outcome_ = symbol_t::TXN_COMMIT;
@@ -744,6 +765,8 @@ bool TxnOCC::commit() {
 bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
+
+    incr_row_refcount(row);
 
     if (row->get_table() == nullptr) {
         // row not inserted into table, just read from staging area
@@ -775,6 +798,8 @@ bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
 bool TxnOCC::write_column(Row* row, column_id_t col_id, const Value& value) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
+
+    incr_row_refcount(row);
 
     if (row->get_table() == nullptr) {
         // row not inserted into table, just write to staging area
@@ -809,6 +834,9 @@ bool TxnOCC::insert_row(Table* tbl, Row* row) {
     verify(outcome_ == symbol_t::NONE);
     verify(row->rtti() == symbol_t::ROW_VERSIONED);
     verify(row->get_table() == nullptr);
+
+    incr_row_refcount(row);
+
     inserts_.insert(table_row_pair(tbl, row));
     removes_.erase(table_row_pair(tbl, row));
     return true;
@@ -818,7 +846,7 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
-    // TODO handle the case where deleted rows are also beening accessed by other transactions
+    incr_row_refcount(row);
 
     // we need to sweep inserts_ to find the Row with exact pointer match
     auto it_pair = inserts_.equal_range(table_row_pair(tbl, row));
@@ -846,7 +874,7 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
         }
         removes_.insert(table_row_pair(tbl, row));
     } else {
-        delete it->row;
+        it->row->release();
         inserts_.erase(it);
     }
     updates_.erase(row);

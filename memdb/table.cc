@@ -77,13 +77,13 @@ int SortedMultiKey::compare(const SortedMultiKey& o) const {
 
 SortedTable::~SortedTable() {
     for (auto& it: rows_) {
-        delete it.second;
+        it.second->release();
     }
 }
 
 void SortedTable::clear() {
     for (auto& it: rows_) {
-        delete it.second;
+        it.second->release();
     }
     rows_.clear();
 }
@@ -121,7 +121,7 @@ void SortedTable::remove(Cursor cur) {
 SortedTable::iterator SortedTable::remove(iterator it, bool do_free /* =? */) {
     if (it != rows_.end()) {
         if (do_free) {
-            delete it->second;
+            it->second->release();
         }
         return rows_.erase(it);
     } else {
@@ -131,13 +131,13 @@ SortedTable::iterator SortedTable::remove(iterator it, bool do_free /* =? */) {
 
 UnsortedTable::~UnsortedTable() {
     for (auto& it: rows_) {
-        delete it.second;
+        it.second->release();
     }
 }
 
 void UnsortedTable::clear() {
     for (auto& it: rows_) {
-        delete it.second;
+        it.second->release();
     }
     rows_.clear();
 }
@@ -167,7 +167,7 @@ void UnsortedTable::remove(Row* row, bool do_free /* =? */) {
 UnsortedTable::iterator UnsortedTable::remove(iterator it, bool do_free /* =? */) {
     if (it != rows_.end()) {
         if (do_free) {
-            delete it->second;
+            it->second->release();
         }
         return rows_.erase(it);
     } else {

@@ -15,7 +15,7 @@ namespace mdb {
 class Schema;
 class Table;
 
-class Row: public NoCopy {
+class Row: public RefCounted {
     // fixed size part
     char* fixed_part_;
 
@@ -54,11 +54,13 @@ protected:
            dense_var_part_(nullptr), dense_var_idx_(nullptr),
            tbl_(nullptr), rdonly_(false), schema_(nullptr) {}
 
+    // RefCounted should have protected dtor
+    virtual ~Row();
+
     // helper function for all the create()
     static Row* create(Row* raw_row, Schema* schema, const std::vector<const Value*>& values);
 
 public:
-    virtual ~Row();
 
     virtual symbol_t rtti() const {
         return symbol_t::ROW_BASIC;
@@ -210,10 +212,15 @@ class FineLockedRow: public Row {
     void init_lock(int n_locks) {
         lock = new RWLock[n_locks];
     }
-public:
+
+protected:
+
+    // protected dtor as required by RefCounted
     ~FineLockedRow() {
         delete[] lock;
     }
+
+public:
 
     virtual symbol_t rtti() const {
         return symbol_t::ROW_FINE;
@@ -272,10 +279,14 @@ class VersionedRow: public Row {
         memset(ver_, 0, sizeof(version_t) * n_columns);
     }
 
-public:
+protected:
+
+    // protected dtor as required by RefCounted
     ~VersionedRow() {
         delete[] ver_;
     }
+
+public:
 
     virtual symbol_t rtti() const {
         return symbol_t::ROW_VERSIONED;
