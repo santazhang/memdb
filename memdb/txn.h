@@ -195,26 +195,22 @@ public:
 };
 
 
-class TableRowPair {
-    // if we should compare row by its content, or compare by pointer value
-    const bool cmp_content_;
-
-public:
+struct table_row_pair {
     Table* table;
     Row* row;
 
-    TableRowPair(Table* t, Row* r, bool cmp_content = true): cmp_content_(cmp_content), table(t), row(r) {}
+    table_row_pair(Table* t, Row* r): table(t), row(r) {}
 
     // NOTE: used by set, to do range query in insert_ set
-    bool operator < (const TableRowPair& o) const;
+    bool operator < (const table_row_pair& o) const;
 
     // NOTE: only used by unsorted_set, to lookup in removes_ set
-    bool operator == (const TableRowPair& o) const {
+    bool operator == (const table_row_pair& o) const {
         return table == o.table && row == o.row;
     }
 
     struct hash {
-        size_t operator() (const TableRowPair& p) const {
+        size_t operator() (const table_row_pair& p) const {
             size_t v1 = size_t(p.table);
             size_t v2 = size_t(p.row);
             return inthash64(v1, v2);
@@ -231,8 +227,8 @@ protected:
 
     symbol_t outcome_;
     std::unordered_multimap<Row*, std::pair<column_id_t, Value>> updates_;
-    std::multiset<TableRowPair> inserts_;
-    std::unordered_set<TableRowPair, TableRowPair::hash> removes_;
+    std::multiset<table_row_pair> inserts_;
+    std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
     std::unordered_multimap<Row*, column_id_t> locks_;
 
     void relese_resource();

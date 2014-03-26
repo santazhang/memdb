@@ -181,32 +181,27 @@ ResultSet TxnUnsafe::all(Table* tbl, symbol_t order /* =? */) {
     }
 }
 
-bool TableRowPair::operator < (const TableRowPair& o) const {
+bool table_row_pair::operator < (const table_row_pair& o) const {
     if (table != o.table) {
         return table < o.table;
     } else {
-        if (cmp_content_ && o.cmp_content_) {
-            // we use ROW_MIN and ROW_MAX as special markers
-            // this helps to get a range query on staged insert set
-            if (row == ROW_MIN) {
-                return o.row != ROW_MIN;
-            } else if (row == ROW_MAX) {
-                return false;
-            } else if (o.row == ROW_MIN) {
-                return false;
-            } else if (o.row == ROW_MAX) {
-                return row != ROW_MAX;
-            }
-            return (*row) < (*o.row);
-        } else {
-            // compare by Row* pointer
-            return row < o.row;
+        // we use ROW_MIN and ROW_MAX as special markers
+        // this helps to get a range query on staged insert set
+        if (row == ROW_MIN) {
+            return o.row != ROW_MIN;
+        } else if (row == ROW_MAX) {
+            return false;
+        } else if (o.row == ROW_MIN) {
+            return false;
+        } else if (o.row == ROW_MAX) {
+            return row != ROW_MAX;
         }
+        return (*row) < (*o.row);
     }
 }
 
-Row* TableRowPair::ROW_MIN = (Row *) 0;
-Row* TableRowPair::ROW_MAX = (Row *) ~0;
+Row* table_row_pair::ROW_MIN = (Row *) 0;
+Row* table_row_pair::ROW_MAX = (Row *) ~0;
 
 Txn2PL::~Txn2PL() {
     relese_resource();
@@ -345,17 +340,26 @@ bool Txn2PL::write_column(Row* row, column_id_t col_id, const Value& value) {
 bool Txn2PL::insert_row(Table* tbl, Row* row) {
     verify(outcome_ == symbol_t::NONE);
     verify(row->get_table() == nullptr);
-    inserts_.insert(TableRowPair(tbl, row));
-    removes_.erase(TableRowPair(tbl, row));
+    inserts_.insert(table_row_pair(tbl, row));
+    removes_.erase(table_row_pair(tbl, row));
     return true;
 }
 
 bool Txn2PL::remove_row(Table* tbl, Row* row) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
-    // NOTE: finding row by pointer value instead of its content
-    auto it = inserts_.find(TableRowPair(tbl, row, false));
-    if (it == inserts_.end()) {
+
+    // we need to sweep inserts_ to find the Row with exact pointer match
+    auto it_pair = inserts_.equal_range(table_row_pair(tbl, row));
+    auto it = it_pair.first;
+    while (it != it_pair.second) {
+        if (it->row == row) {
+            break;
+        }
+        ++it;
+    }
+
+    if (it == it_pair.second) {
         // lock whole row, only if row is on real table
         if (row->rtti() == symbol_t::ROW_COARSE) {
             CoarseLockedRow* coarse_row = (CoarseLockedRow *) row;
@@ -375,7 +379,7 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
             // row must either be FineLockedRow or CoarseLockedRow
             verify(row->rtti() == symbol_t::ROW_COARSE || row->rtti() == symbol_t::ROW_FINE);
         }
-        removes_.insert(TableRowPair(tbl, row));
+        removes_.insert(table_row_pair(tbl, row));
     } else {
         delete it->row;
         inserts_.erase(it);
@@ -405,10 +409,10 @@ class MergedCursor: public NoCopy, public Enumerator<const Row*> {
     Enumerator<const Row*>* cursor_;
 
     bool reverse_order_;
-    std::multiset<TableRowPair>::const_iterator inserts_next_, inserts_end_;
-    std::multiset<TableRowPair>::const_reverse_iterator r_inserts_next_, r_inserts_end_;
+    std::multiset<table_row_pair>::const_iterator inserts_next_, inserts_end_;
+    std::multiset<table_row_pair>::const_reverse_iterator r_inserts_next_, r_inserts_end_;
 
-    const std::unordered_set<TableRowPair, TableRowPair::hash>& removes_;
+    const std::unordered_set<table_row_pair, table_row_pair::hash>& removes_;
 
     bool cached_;
     const Row* cached_next_;
@@ -445,7 +449,7 @@ class MergedCursor: public NoCopy, public Enumerator<const Row*> {
             next_candidate_ = cursor_->next();
 
             // check if row has been removeds
-            TableRowPair needle(tbl_, const_cast<Row*>(next_candidate_));
+            table_row_pair needle(tbl_, const_cast<Row*>(next_candidate_));
             if (removes_.find(needle) != removes_.end()) {
                 next_candidate_ = nullptr;
             }
@@ -482,18 +486,18 @@ class MergedCursor: public NoCopy, public Enumerator<const Row*> {
 public:
     MergedCursor(Table* tbl,
                  Enumerator<const Row*>* cursor,
-                 const std::multiset<TableRowPair>::const_iterator& inserts_begin,
-                 const std::multiset<TableRowPair>::const_iterator& inserts_end,
-                 const std::unordered_set<TableRowPair, TableRowPair::hash>& removes)
+                 const std::multiset<table_row_pair>::const_iterator& inserts_begin,
+                 const std::multiset<table_row_pair>::const_iterator& inserts_end,
+                 const std::unordered_set<table_row_pair, table_row_pair::hash>& removes)
         : tbl_(tbl), cursor_(cursor), reverse_order_(false),
           inserts_next_(inserts_begin), inserts_end_(inserts_end), removes_(removes),
           cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {}
 
     MergedCursor(Table* tbl,
                  Enumerator<const Row*>* cursor,
-                 const std::multiset<TableRowPair>::const_reverse_iterator& inserts_rbegin,
-                 const std::multiset<TableRowPair>::const_reverse_iterator& inserts_rend,
-                 const std::unordered_set<TableRowPair, TableRowPair::hash>& removes)
+                 const std::multiset<table_row_pair>::const_reverse_iterator& inserts_rbegin,
+                 const std::multiset<table_row_pair>::const_reverse_iterator& inserts_rend,
+                 const std::unordered_set<table_row_pair, table_row_pair::hash>& removes)
         : tbl_(tbl), cursor_(cursor), reverse_order_(true),
           r_inserts_next_(inserts_rbegin), r_inserts_end_(inserts_rend), removes_(removes),
           cached_(false), cached_next_(nullptr), next_candidate_(nullptr) {}
@@ -524,9 +528,8 @@ ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
     MergedCursor* merged_cursor = nullptr;
     KeyOnlySearchRow key_search_row(tbl->schema(), &mb);
 
-    // NOTE: finding row by its content instead of pointer value
-    auto inserts_begin = inserts_.lower_bound(TableRowPair(tbl, &key_search_row));
-    auto inserts_end = inserts_.upper_bound(TableRowPair(tbl, &key_search_row));
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, &key_search_row));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, &key_search_row));
 
     if (tbl->rtti() == TBL_UNSORTED) {
         UnsortedTable* t = (UnsortedTable *) tbl;
@@ -554,17 +557,16 @@ ResultSet Txn2PL::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order
     MergedCursor* merged_cursor = nullptr;
     KeyOnlySearchRow key_search_row(tbl->schema(), &smk.get_multi_blob());
 
-    // NOTE: finding row by its content instead of pointer value
-    auto inserts_begin = inserts_.lower_bound(TableRowPair(tbl, TableRowPair::ROW_MIN));
-    auto inserts_end = inserts_.lower_bound(TableRowPair(tbl, &key_search_row));
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+    auto inserts_end = inserts_.lower_bound(table_row_pair(tbl, &key_search_row));
 
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_lt(smk, order));
 
         if (order == symbol_t::ORD_DESC) {
-            auto inserts_rbegin = std::multiset<TableRowPair>::const_reverse_iterator(inserts_end);
-            auto inserts_rend = std::multiset<TableRowPair>::const_reverse_iterator(inserts_begin);
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
             merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
 
         } else {
@@ -592,17 +594,16 @@ ResultSet Txn2PL::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order
     MergedCursor* merged_cursor = nullptr;
     KeyOnlySearchRow key_search_row(tbl->schema(), &smk.get_multi_blob());
 
-    // NOTE: finding row by its content instead of pointer value
-    auto inserts_begin = inserts_.upper_bound(TableRowPair(tbl, &key_search_row));
-    auto inserts_end = inserts_.upper_bound(TableRowPair(tbl, TableRowPair::ROW_MAX));
+    auto inserts_begin = inserts_.upper_bound(table_row_pair(tbl, &key_search_row));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
 
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_gt(smk, order));
 
         if (order == symbol_t::ORD_DESC) {
-            auto inserts_rbegin = std::multiset<TableRowPair>::const_reverse_iterator(inserts_end);
-            auto inserts_rend = std::multiset<TableRowPair>::const_reverse_iterator(inserts_begin);
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
             merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
 
         } else {
@@ -631,17 +632,16 @@ ResultSet Txn2PL::query_in(Table* tbl, const SortedMultiKey& low, const SortedMu
     KeyOnlySearchRow key_search_row_low(tbl->schema(), &low.get_multi_blob());
     KeyOnlySearchRow key_search_row_high(tbl->schema(), &high.get_multi_blob());
 
-    // NOTE: finding row by its content instead of pointer value
-    auto inserts_begin = inserts_.upper_bound(TableRowPair(tbl, &key_search_row_low));
-    auto inserts_end = inserts_.lower_bound(TableRowPair(tbl, &key_search_row_high));
+    auto inserts_begin = inserts_.upper_bound(table_row_pair(tbl, &key_search_row_low));
+    auto inserts_end = inserts_.lower_bound(table_row_pair(tbl, &key_search_row_high));
 
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->query_in(low, high, order));
 
         if (order == symbol_t::ORD_DESC) {
-            auto inserts_rbegin = std::multiset<TableRowPair>::const_reverse_iterator(inserts_end);
-            auto inserts_rend = std::multiset<TableRowPair>::const_reverse_iterator(inserts_begin);
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
             merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
 
         } else {
@@ -668,9 +668,8 @@ ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
     verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
     MergedCursor* merged_cursor = nullptr;
 
-    // NOTE: finding row by its content instead of pointer value
-    auto inserts_begin = inserts_.lower_bound(TableRowPair(tbl, TableRowPair::ROW_MIN));
-    auto inserts_end = inserts_.upper_bound(TableRowPair(tbl, TableRowPair::ROW_MAX));
+    auto inserts_begin = inserts_.lower_bound(table_row_pair(tbl, table_row_pair::ROW_MIN));
+    auto inserts_end = inserts_.upper_bound(table_row_pair(tbl, table_row_pair::ROW_MAX));
 
     if (tbl->rtti() == TBL_UNSORTED) {
         // unsorted tables only accept ORD_ANY
@@ -683,8 +682,8 @@ ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
         SortedTable* t = (SortedTable *) tbl;
         SortedTable::Cursor* cursor = new SortedTable::Cursor(t->all(order));
         if (order == symbol_t::ORD_DESC) {
-            auto inserts_rbegin = std::multiset<TableRowPair>::const_reverse_iterator(inserts_end);
-            auto inserts_rend = std::multiset<TableRowPair>::const_reverse_iterator(inserts_begin);
+            auto inserts_rbegin = std::multiset<table_row_pair>::const_reverse_iterator(inserts_end);
+            auto inserts_rend = std::multiset<table_row_pair>::const_reverse_iterator(inserts_begin);
             merged_cursor = new MergedCursor(tbl, cursor, inserts_rbegin, inserts_rend, removes_);
         } else {
             merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);
@@ -810,8 +809,8 @@ bool TxnOCC::insert_row(Table* tbl, Row* row) {
     verify(outcome_ == symbol_t::NONE);
     verify(row->rtti() == symbol_t::ROW_VERSIONED);
     verify(row->get_table() == nullptr);
-    inserts_.insert(TableRowPair(tbl, row));
-    removes_.erase(TableRowPair(tbl, row));
+    inserts_.insert(table_row_pair(tbl, row));
+    removes_.erase(table_row_pair(tbl, row));
     return true;
 }
 
@@ -821,9 +820,17 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
 
     // TODO handle the case where deleted rows are also beening accessed by other transactions
 
-    // NOTE: finding row by pointer value instead of its content
-    auto it = inserts_.find(TableRowPair(tbl, row, false));
-    if (it == inserts_.end()) {
+    // we need to sweep inserts_ to find the Row with exact pointer match
+    auto it_pair = inserts_.equal_range(table_row_pair(tbl, row));
+    auto it = it_pair.first;
+    while (it != it_pair.second) {
+        if (it->row == row) {
+            break;
+        }
+        ++it;
+    }
+
+    if (it == it_pair.second) {
         if (row->rtti() == symbol_t::ROW_VERSIONED) {
             VersionedRow* v_row = (VersionedRow *) row;
 
@@ -837,7 +844,7 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
             // row must either be FineLockedRow or CoarseLockedRow
             verify(row->rtti() == symbol_t::ROW_VERSIONED);
         }
-        removes_.insert(TableRowPair(tbl, row));
+        removes_.insert(table_row_pair(tbl, row));
     } else {
         delete it->row;
         inserts_.erase(it);
