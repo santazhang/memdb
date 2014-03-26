@@ -377,8 +377,8 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
         }
         removes_.insert(TableRowPair(tbl, row));
     } else {
-        inserts_.erase(it);
         delete it->row;
+        inserts_.erase(it);
     }
     updates_.erase(row);
 
@@ -839,8 +839,8 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
         }
         removes_.insert(TableRowPair(tbl, row));
     } else {
-        inserts_.erase(it);
         delete it->row;
+        inserts_.erase(it);
     }
     updates_.erase(row);
 
