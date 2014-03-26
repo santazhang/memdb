@@ -376,7 +376,6 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
             verify(row->rtti() == symbol_t::ROW_COARSE || row->rtti() == symbol_t::ROW_FINE);
         }
     } else {
-        delete it->row;
         inserts_.erase(it);
     }
     updates_.erase(row);
@@ -837,7 +836,6 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
             verify(row->rtti() == symbol_t::ROW_VERSIONED);
         }
     } else {
-        delete it->row;
         inserts_.erase(it);
     }
     updates_.erase(row);
