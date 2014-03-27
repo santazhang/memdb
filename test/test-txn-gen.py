@@ -88,6 +88,8 @@ using namespace mdb;
                         table_type = "UnsortedTable"
                     elif s == "sorted":
                         table_type = "SortedTable"
+                    elif s == "snapshot":
+                        table_type = "SnapshotTable"
                     elif s == "fine":
                         row_type = "FineLockedRow"
                     elif s == "coarse":

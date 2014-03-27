@@ -36,6 +36,99 @@ TEST(row, create) {
     delete schema;
 }
 
+TEST(row, cloning) {
+    Schema schema;
+    schema.add_column("id", Value::I32);
+    schema.add_column("id2", Value::I32);
+    schema.add_column("name", Value::STR);
+    schema.add_column("name2", Value::STR);
+    schema.add_column("name3", Value::STR);
+
+    unordered_map<string, Value> row1;
+    row1["id"] = Value(3);
+    row1["id2"] = Value(3);
+    row1["name"] = Value("cathy");
+    row1["name2"] = Value("ca_col2");
+    row1["name3"] = Value("ca_col3");
+    Row* r1 = Row::create(&schema, row1);
+    EXPECT_EQ(r1->get_column("id").get_i32(), 3);
+    EXPECT_EQ(r1->get_column("id2").get_i32(), 3);
+    EXPECT_EQ(r1->get_column("name").get_str(), "cathy");
+    EXPECT_EQ(r1->get_column("name2").get_str(), "ca_col2");
+    EXPECT_EQ(r1->get_column("name3").get_str(), "ca_col3");
+    Row* r1_copy = r1->copy();
+    EXPECT_EQ(r1->schema(), r1_copy->schema());
+    EXPECT_TRUE(*r1 == *r1_copy);
+    EXPECT_EQ(r1_copy->get_column("id").get_i32(), 3);
+    EXPECT_EQ(r1_copy->get_column("id2").get_i32(), 3);
+    EXPECT_EQ(r1_copy->get_column("name").get_str(), "cathy");
+    EXPECT_EQ(r1_copy->get_column("name2").get_str(), "ca_col2");
+    EXPECT_EQ(r1_copy->get_column("name3").get_str(), "ca_col3");
+    r1->release();
+    r1_copy->release();
+}
+
+TEST(row, cloning_on_sparse_row) {
+    Schema schema;
+    schema.add_column("id", Value::I32);
+    schema.add_column("id2", Value::I32);
+    schema.add_column("name", Value::STR);
+    schema.add_column("name2", Value::STR);
+    schema.add_column("name3", Value::STR);
+
+    unordered_map<string, Value> row1;
+    row1["id"] = Value(3);
+    row1["id2"] = Value(3);
+    row1["name"] = Value("cathy");
+    row1["name2"] = Value("cathy_col2");
+    row1["name3"] = Value("cathy_col3");
+    Row* r1 = Row::create(&schema, row1);
+    EXPECT_EQ(r1->get_column("id").get_i32(), 3);
+    EXPECT_EQ(r1->get_column("id2").get_i32(), 3);
+    EXPECT_EQ(r1->get_column("name").get_str(), "cathy");
+    EXPECT_EQ(r1->get_column("name2").get_str(), "cathy_col2");
+    EXPECT_EQ(r1->get_column("name3").get_str(), "cathy_col3");
+    r1->make_sparse();
+    Row* r1_copy = r1->copy();
+    EXPECT_EQ(r1->schema(), r1_copy->schema());
+    EXPECT_TRUE(*r1 == *r1_copy);
+    EXPECT_EQ(r1_copy->get_column("id").get_i32(), 3);
+    EXPECT_EQ(r1_copy->get_column("id2").get_i32(), 3);
+    EXPECT_EQ(r1_copy->get_column("name").get_str(), "cathy");
+    EXPECT_EQ(r1_copy->get_column("name2").get_str(), "cathy_col2");
+    EXPECT_EQ(r1_copy->get_column("name3").get_str(), "cathy_col3");
+    r1->release();
+    r1_copy->release();
+}
+
+TEST(row, more_cloning) {
+    Schema schema;
+    schema.add_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    unordered_map<string, Value> row1;
+    row1["id"] = Value(3);
+    row1["name"] = Value("cathy");
+
+    {
+        FineLockedRow* r1 = FineLockedRow::create(&schema, row1);
+        FineLockedRow* r2 = (FineLockedRow *) r1->copy();
+        r2->wlock_column_by(1, 1);
+    }
+
+    {
+        CoarseLockedRow* r1 = CoarseLockedRow::create(&schema, row1);
+        CoarseLockedRow* r2 = (CoarseLockedRow *) r1->copy();
+        r2->wlock_row_by(1);
+    }
+
+    {
+        VersionedRow* r1 = VersionedRow::create(&schema, row1);
+        VersionedRow* r2 = (VersionedRow *) r1->copy();
+        r2->incr_column_ver(1);
+    }
+}
+
 TEST(row, make_sparse) {
     Schema* schema = new Schema;
     schema->add_column("id", Value::I32);

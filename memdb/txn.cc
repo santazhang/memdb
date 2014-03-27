@@ -241,11 +241,33 @@ bool Txn2PL::commit() {
         it.table->insert(it.row);
     }
     for (auto& it : updates_) {
-        // TODO update on snapshot table (remove then insert)
         Row* row = it.first;
         column_id_t column_id = it.second.first;
         Value& value = it.second.second;
-        row->update(column_id, value);
+        const Table* tbl = row->get_table();
+        if (tbl->rtti() == TBL_SNAPSHOT) {
+            // update on snapshot table (remove then insert)
+            Row* new_row = row->copy();
+            new_row->update(column_id, value);
+            SnapshotTable* ss_tbl = (SnapshotTable *) tbl;
+            ss_tbl->remove(row);
+            ss_tbl->insert(new_row);
+
+            // redirect the locks
+            auto it_pair = locks_.equal_range(row);
+            vector<column_id_t> locked_columns;
+            for (auto it_lock = it_pair.first; it_lock != it_pair.second; ++it_lock) {
+                locked_columns.push_back(it_lock->second);
+            }
+            if (!locked_columns.empty()) {
+                locks_.erase(row);
+            }
+            for (auto& col_id : locked_columns) {
+                insert_into_map(locks_, new_row, col_id);
+            }
+        } else {
+            row->update(column_id, value);
+        }
     }
     for (auto& it : removes_) {
         // remove the locks since the row has gone already
@@ -792,11 +814,42 @@ void TxnOCC::commit_confirm() {
         it.table->insert(it.row);
     }
     for (auto& it : updates_) {
-        // TODO update on snapshot table (remove then insert)
         Row* row = it.first;
         column_id_t column_id = it.second.first;
         Value& value = it.second.second;
-        row->update(column_id, value);
+        const Table* tbl = row->get_table();
+        if (tbl->rtti() == TBL_SNAPSHOT) {
+            // update on snapshot table (remove then insert)
+            Row* new_row = row->copy();
+            new_row->update(column_id, value);
+            SnapshotTable* ss_tbl = (SnapshotTable *) tbl;
+            ss_tbl->remove(row);
+            ss_tbl->insert(new_row);
+
+            // redirect the locks
+            auto it_pair = locks_.equal_range(row);
+            vector<column_id_t> locked_columns;
+            for (auto it_lock = it_pair.first; it_lock != it_pair.second; ++it_lock) {
+                locked_columns.push_back(it_lock->second);
+            }
+            if (!locked_columns.empty()) {
+                locks_.erase(row);
+            }
+            for (auto& col_id : locked_columns) {
+                insert_into_map(locks_, new_row, col_id);
+            }
+
+            // redirect the accessed_rows_
+            auto it_accessed = accessed_rows_.find(row);
+            if (it_accessed != accessed_rows_.end()) {
+                (*it_accessed)->release();
+                accessed_rows_.erase(it_accessed);
+                new_row->ref_copy();
+                accessed_rows_.insert(new_row);
+            }
+        } else {
+            row->update(column_id, value);
+        }
     }
     for (auto& it : removes_) {
         // remove the locks since the row has gone already

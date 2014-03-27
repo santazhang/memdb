@@ -18,6 +18,43 @@ Row::~Row() {
     }
 }
 
+void Row::copy_into(Row* row) const {
+    row->fixed_part_ = new char[this->schema_->fixed_part_size_];
+    memcpy(row->fixed_part_, this->fixed_part_, this->schema_->fixed_part_size_);
+
+    row->kind_ = DENSE; // always make a dense copy
+
+    int var_part_size = 0;
+    int var_count = 0;
+    for (auto& it : *this->schema_) {
+        if (it.type != Value::STR) {
+            continue;
+        }
+        var_part_size += this->get_blob(it.id).len;
+        var_count++;
+    }
+    row->dense_var_part_ = new char[var_part_size];
+    row->dense_var_idx_ = new int[var_count];
+
+    int var_idx = 0;
+    int var_pos = 0;
+    for (auto& it : *this->schema_) {
+        if (it.type != Value::STR) {
+            continue;
+        }
+        blob b = this->get_blob(it.id);
+        memcpy(&row->dense_var_part_[var_pos], b.data, b.len);
+        var_pos += b.len;
+        row->dense_var_idx_[var_idx] = var_pos;
+        var_idx++;
+    }
+
+    row->tbl_ = nullptr;    // do not mark it as inside some table
+
+    row->rdonly_ = false;   // always make it writable
+    row->schema_ = this->schema_;
+}
+
 void Row::make_sparse() {
     if (kind_ == SPARSE) {
         // already sparse data
@@ -290,10 +327,10 @@ Row* Row::create(Row* raw_row, Schema* schema, const std::vector<const Value*>& 
         row->dense_var_part_ = new char[var_part_size];
         for (auto& it: values) {
             if (it->get_kind() == Value::STR) {
-                row->dense_var_idx_[var_counter] = it->get_str().size();
                 it->write_binary(&row->dense_var_part_[var_pos]);
-                var_counter++;
                 var_pos += it->get_str().size();
+                row->dense_var_idx_[var_counter] = var_pos;
+                var_counter++;
             }
         }
         verify(var_part_size == var_pos);
@@ -350,6 +387,32 @@ FineLockedRow* FineLockedRow::create(Schema* schema, const std::unordered_map<st
     FineLockedRow* raw_row = new FineLockedRow();
     raw_row->init_lock(schema->columns_count());
     return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
+}
+
+VersionedRow* VersionedRow::create(Schema* schema, const std::map<std::string, Value>& values) {
+    verify(values.size() == schema->columns_count());
+    std::vector<const Value*> values_ptr(values.size(), nullptr);
+    for (auto& it: values) {
+        int col_id = schema->get_column_id(it.first);
+        verify(col_id >= 0);
+        values_ptr[col_id] = &it.second;
+    }
+    VersionedRow* raw_row = new VersionedRow();
+    raw_row->init_ver(schema->columns_count());
+    return (VersionedRow * ) Row::create(raw_row, schema, values_ptr);
+}
+
+VersionedRow* VersionedRow::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
+    verify(values.size() == schema->columns_count());
+    std::vector<const Value*> values_ptr(values.size(), nullptr);
+    for (auto& it: values) {
+        int col_id = schema->get_column_id(it.first);
+        verify(col_id >= 0);
+        values_ptr[col_id] = &it.second;
+    }
+    VersionedRow* raw_row = new VersionedRow();
+    raw_row->init_ver(schema->columns_count());
+    return (VersionedRow * ) Row::create(raw_row, schema, values_ptr);
 }
 
 } // namespace mdb

@@ -120,7 +120,67 @@ begin_test()[2pl, sorted, coarse]
 
 end_test
 
+begin_test()[2pl, snapshot, coarse]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0) -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+        write(tx2, student, 1, 1, "bob") -> ok
+    commit(tx2)
+
+    begin(tx3)
+        read(tx3, student, 1, 1) = "bob" -> ok
+
+    begin(tx4)
+        read(tx4, student, 1, 1) = "bob" -> ok
+    abort(tx4)
+
+        remove(tx3, student, 1) -> ok
+
+    commit(tx3)
+
+end_test
+
 begin_test()[2pl, sorted, fine]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob") -> ok
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0) -> fail
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+        write(tx2, student, 1, 1, "bob") -> ok
+    commit(tx2)
+
+    begin(tx3)
+        read(tx3, student, 1, 1) = "bob" -> ok
+
+    begin(tx4)
+        read(tx4, student, 1, 1) = "bob" -> ok
+    abort(tx4)
+
+        remove(tx3, student, 1) -> ok
+
+    commit(tx3)
+
+end_test
+
+begin_test()[2pl, snapshot, fine]
 
     begin(tx1)
         insert(tx1, student, 1, "alice") -> ok
@@ -228,7 +288,41 @@ begin_test(dummy_2)[2pl, sorted, coarse]
 
 end_test
 
+begin_test(dummy_3)[2pl, snapshot, coarse]
+
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+        insert(tx1, student, 2, "bob")
+
+    begin(tx1a)
+        read(tx1a, student, 1, 0)
+    abort(tx1a)
+
+    commit(tx1) -> ok
+
+    begin(tx2)
+        read(tx2, student, 1, 1) = "alice" -> ok
+    commit(tx2)
+
+end_test
+
 begin_test()[occ, unsorted, versioned]
+    begin(tx1)
+        insert(tx1, student, 1, "alice") -> ok
+    commit(tx1)
+
+    begin(tx2a)
+        read(tx2a, student, 1, 1) -> "alice" -> ok
+    begin(tx2)
+        write(tx2, student, 1, 1, "mad_alice") -> ok
+    begin(tx2b)
+        read(tx2a, student, 1, 1) -> "mad_alice" -> ok
+    commit(tx2) -> ok
+    commit(tx2b) -> ok
+    commit(tx2a) -> fail
+end_test
+
+begin_test()[occ, snapshot, versioned]
     begin(tx1)
         insert(tx1, student, 1, "alice") -> ok
     commit(tx1)

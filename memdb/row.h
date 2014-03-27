@@ -32,7 +32,7 @@ class Row: public RefCounted {
             // var size part
             char* dense_var_part_;
 
-            // index table for var size part
+            // index table for var size part (marks the stop of a var segment)
             int* dense_var_idx_;
         };
 
@@ -56,6 +56,8 @@ protected:
 
     // RefCounted should have protected dtor
     virtual ~Row();
+
+    void copy_into(Row* row) const;
 
     // helper function for all the create()
     static Row* create(Row* raw_row, Schema* schema, const std::vector<const Value*>& values);
@@ -154,6 +156,12 @@ public:
         return compare(o) != -1;
     }
 
+    virtual Row* copy() const {
+        Row* row = new Row();
+        copy_into(row);
+        return row;
+    }
+
     static Row* create(Schema* schema, const std::map<std::string, Value>& values);
     static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
 
@@ -171,12 +179,17 @@ public:
 
 
 class CoarseLockedRow: public Row {
-    RWLock lock;
+    RWLock lock_;
 
 protected:
 
     // protected dtor as required by RefCounted
     ~CoarseLockedRow() {}
+
+    void copy_into(CoarseLockedRow* row) const {
+        this->Row::copy_into((Row *) row);
+        row->lock_ = lock_;
+    }
 
 public:
 
@@ -185,16 +198,19 @@ public:
     }
 
     bool rlock_row_by(lock_owner_t o) {
-        verify(!rdonly_);
-        return lock.rlock_by(o);
+        return lock_.rlock_by(o);
     }
     bool wlock_row_by(lock_owner_t o) {
-        verify(!rdonly_);
-        return lock.wlock_by(o);
+        return lock_.wlock_by(o);
     }
     bool unlock_row_by(lock_owner_t o) {
-        verify(!rdonly_);
-        return lock.unlock_by(o);
+        return lock_.unlock_by(o);
+    }
+
+    virtual Row* copy() const {
+        CoarseLockedRow* row = new CoarseLockedRow();
+        copy_into(row);
+        return row;
     }
 
     static CoarseLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
@@ -214,16 +230,25 @@ public:
 
 
 class FineLockedRow: public Row {
-    RWLock* lock;
-    void init_lock(int n_locks) {
-        lock = new RWLock[n_locks];
+    RWLock* lock_;
+    void init_lock(int n_columns) {
+        lock_ = new RWLock[n_columns];
     }
 
 protected:
 
     // protected dtor as required by RefCounted
     ~FineLockedRow() {
-        delete[] lock;
+        delete[] lock_;
+    }
+
+    void copy_into(FineLockedRow* row) const {
+        this->Row::copy_into((Row *) row);
+        int n_columns = schema_->columns_count();
+        row->init_lock(n_columns);
+        for (int i = 0; i < n_columns; i++) {
+            row->lock_[i] = lock_[i];
+        }
     }
 
 public:
@@ -233,31 +258,31 @@ public:
     }
 
     bool rlock_column_by(column_id_t column_id, lock_owner_t o) {
-        verify(!rdonly_);
-        return lock[column_id].rlock_by(o);
+        return lock_[column_id].rlock_by(o);
     }
     bool rlock_column_by(const std::string& col_name, lock_owner_t o) {
-        verify(!rdonly_);
         column_id_t column_id = schema_->get_column_id(col_name);
-        return lock[column_id].rlock_by(o);
+        return lock_[column_id].rlock_by(o);
     }
     bool wlock_column_by(column_id_t column_id, lock_owner_t o) {
-        verify(!rdonly_);
-        return lock[column_id].wlock_by(o);
+        return lock_[column_id].wlock_by(o);
     }
     bool wlock_column_by(const std::string& col_name, lock_owner_t o) {
-        verify(!rdonly_);
         int column_id = schema_->get_column_id(col_name);
-        return lock[column_id].wlock_by(o);
+        return lock_[column_id].wlock_by(o);
     }
     bool unlock_column_by(column_id_t column_id, lock_owner_t o) {
-        verify(!rdonly_);
-        return lock[column_id].unlock_by(o);
+        return lock_[column_id].unlock_by(o);
     }
     bool unlock_column_by(const std::string& col_name, lock_owner_t o) {
-        verify(!rdonly_);
         column_id_t column_id = schema_->get_column_id(col_name);
-        return lock[column_id].unlock_by(o);
+        return lock_[column_id].unlock_by(o);
+    }
+
+    virtual Row* copy() const {
+        FineLockedRow* row = new FineLockedRow();
+        copy_into(row);
+        return row;
     }
 
     static FineLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
@@ -293,6 +318,13 @@ protected:
         delete[] ver_;
     }
 
+    void copy_into(VersionedRow* row) const {
+        this->CoarseLockedRow::copy_into((CoarseLockedRow *)row);
+        int n_columns = schema_->columns_count();
+        row->init_ver(n_columns);
+        memcpy(row->ver_, this->ver_, n_columns * sizeof(version_t));
+    }
+
 public:
 
     virtual symbol_t rtti() const {
@@ -305,6 +337,12 @@ public:
 
     void incr_column_ver(column_id_t column_id) const {
         ver_[column_id]++;
+    }
+
+    virtual Row* copy() const {
+        VersionedRow* row = new VersionedRow();
+        copy_into(row);
+        return row;
     }
 
     static VersionedRow* create(Schema* schema, const std::map<std::string, Value>& values);
