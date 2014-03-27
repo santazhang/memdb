@@ -327,6 +327,14 @@ public:
     bool commit_prepare();
     void commit_confirm();
 
+    bool commit_prepare_or_abort() {
+        bool ret = commit_prepare();
+        if (!ret) {
+            abort();
+        }
+        return ret;
+    }
+
     virtual bool read_column(Row* row, column_id_t col_id, Value* value);
     virtual bool write_column(Row* row, column_id_t col_id, const Value& value);
     virtual bool insert_row(Table* tbl, Row* row);
