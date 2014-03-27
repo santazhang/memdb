@@ -254,22 +254,31 @@ bool Txn2PL::commit() {
     for (auto& it : inserts_) {
         it.table->insert(it.row);
     }
-    for (auto& it : updates_) {
-        Row* row = it.first;
-        column_id_t column_id = it.second.first;
-        Value& value = it.second.second;
+    for (auto it = updates_.begin(); it != updates_.end(); /* no ++it! */) {
+        Row* row = it->first;
+        column_id_t column_id = it->second.first;
         const Table* tbl = row->get_table();
         if (tbl->rtti() == TBL_SNAPSHOT) {
             // update on snapshot table (remove then insert)
             Row* new_row = row->copy();
-            new_row->update(column_id, value);
+
+            // batch update all values
+            auto it_end = updates_.upper_bound(row);
+            while (it != it_end) {
+                Value& value = it->second.second;
+                new_row->update(column_id, value);
+                ++it;
+            }
+
             SnapshotTable* ss_tbl = (SnapshotTable *) tbl;
             ss_tbl->remove(row);
             ss_tbl->insert(new_row);
 
             redirect_locks(locks_, new_row, row);
         } else {
+            Value& value = it->second.second;
             row->update(column_id, value);
+            ++it;
         }
     }
     for (auto& it : removes_) {
@@ -813,15 +822,22 @@ void TxnOCC::commit_confirm() {
     for (auto& it : inserts_) {
         it.table->insert(it.row);
     }
-    for (auto& it : updates_) {
-        Row* row = it.first;
-        column_id_t column_id = it.second.first;
-        Value& value = it.second.second;
+    for (auto it = updates_.begin(); it != updates_.end(); /* no ++it! */) {
+        Row* row = it->first;
+        column_id_t column_id = it->second.first;
         const Table* tbl = row->get_table();
         if (tbl->rtti() == TBL_SNAPSHOT) {
             // update on snapshot table (remove then insert)
             Row* new_row = row->copy();
-            new_row->update(column_id, value);
+
+            // batch update all values
+            auto it_end = updates_.upper_bound(row);
+            while (it != it_end) {
+                Value& value = it->second.second;
+                new_row->update(column_id, value);
+                ++it;
+            }
+
             SnapshotTable* ss_tbl = (SnapshotTable *) tbl;
             ss_tbl->remove(row);
             ss_tbl->insert(new_row);
@@ -837,7 +853,9 @@ void TxnOCC::commit_confirm() {
                 accessed_rows_.insert(new_row);
             }
         } else {
+            Value& value = it->second.second;
             row->update(column_id, value);
+            ++it;
         }
     }
     for (auto& it : removes_) {

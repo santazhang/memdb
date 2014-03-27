@@ -237,7 +237,7 @@ class Txn2PL: public Txn {
 protected:
 
     symbol_t outcome_;
-    std::unordered_multimap<Row*, std::pair<column_id_t, Value>> updates_;
+    std::multimap<Row*, std::pair<column_id_t, Value>> updates_;
     std::multiset<table_row_pair> inserts_;
     std::unordered_set<table_row_pair, table_row_pair::hash> removes_;
     std::unordered_multimap<Row*, column_id_t> locks_;
