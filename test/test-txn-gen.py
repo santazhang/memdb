@@ -316,10 +316,10 @@ using namespace mdb;
                         outcome = "TRUE"
                     else:
                         outcome = "FALSE"
-                    g.writeln("EXPECT_%s(txn_%s->commit());" % (outcome, txn_name))
+                    g.writeln("EXPECT_%s(txn_%s->commit_or_abort());" % (outcome, txn_name))
                 else:
                     txn_name = line[7:-1]
-                    g.writeln("txn_%s->commit();" % txn_name)
+                    g.writeln("txn_%s->commit_or_abort();" % txn_name)
                 g.writeln("delete txn_%s;" % txn_name)
 
             elif line.startswith("end_test"):

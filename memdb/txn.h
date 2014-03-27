@@ -80,6 +80,14 @@ public:
     virtual void abort() = 0;
     virtual bool commit() = 0;
 
+    bool commit_or_abort() {
+        bool ret = commit();
+        if (!ret) {
+            abort();
+        }
+        return ret;
+    }
+
     virtual bool read_column(Row* row, column_id_t col_id, Value* value) = 0;
     virtual bool write_column(Row* row, column_id_t col_id, const Value& value) = 0;
     virtual bool insert_row(Table* tbl, Row* row) = 0;

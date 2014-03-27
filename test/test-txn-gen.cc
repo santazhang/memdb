@@ -45,7 +45,7 @@ TEST(txn_gen, 1) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L42: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L44: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -73,7 +73,7 @@ TEST(txn_gen, 1) {
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
     // L47: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L49: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
@@ -117,7 +117,7 @@ TEST(txn_gen, 1) {
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
     // L58: commit(tx3)
-    txn_tx3->commit();
+    txn_tx3->commit_or_abort();
     delete txn_tx3;
     // L60: end_test
     delete tbl_student;
@@ -160,7 +160,7 @@ TEST(txn_gen, 2) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L72: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L74: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -188,7 +188,7 @@ TEST(txn_gen, 2) {
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
     // L77: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L79: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
@@ -232,7 +232,7 @@ TEST(txn_gen, 2) {
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
     // L88: commit(tx3)
-    txn_tx3->commit();
+    txn_tx3->commit_or_abort();
     delete txn_tx3;
     // L90: end_test
     delete tbl_student;
@@ -275,7 +275,7 @@ TEST(txn_gen, 3) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L103: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L105: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -303,7 +303,7 @@ TEST(txn_gen, 3) {
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
     // L108: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L110: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
@@ -347,7 +347,7 @@ TEST(txn_gen, 3) {
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
     // L119: commit(tx3)
-    txn_tx3->commit();
+    txn_tx3->commit_or_abort();
     delete txn_tx3;
     // L121: end_test
     delete tbl_student;
@@ -390,7 +390,7 @@ TEST(txn_gen, 4) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L133: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L135: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -418,7 +418,7 @@ TEST(txn_gen, 4) {
         EXPECT_TRUE(txn_tx2->write_column(query_row, 1, v_write));
     } while(0);
     // L138: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L140: begin(tx3)
     Txn* txn_tx3 = txnmgr.start(-1495230934652649124);
@@ -462,7 +462,7 @@ TEST(txn_gen, 4) {
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
     // L149: commit(tx3)
-    txn_tx3->commit();
+    txn_tx3->commit_or_abort();
     delete txn_tx3;
     // L151: end_test
     delete tbl_student;
@@ -514,7 +514,7 @@ TEST(txn_gen, 5) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L165: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L167: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -531,7 +531,7 @@ TEST(txn_gen, 5) {
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
     // L169: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L171: end_test
     delete tbl_student;
@@ -583,7 +583,7 @@ TEST(txn_gen, 6) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L185: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L187: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -600,7 +600,7 @@ TEST(txn_gen, 6) {
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
     // L189: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L191: end_test
     delete tbl_student;
@@ -643,7 +643,7 @@ TEST(txn_gen, dummy) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L205: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L207: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -660,7 +660,7 @@ TEST(txn_gen, dummy) {
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
     // L209: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L211: end_test
     delete tbl_student;
@@ -703,7 +703,7 @@ TEST(txn_gen, dummy_2) {
     txn_tx1a->abort();
     delete txn_tx1a;
     // L223: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L225: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -720,7 +720,7 @@ TEST(txn_gen, dummy_2) {
         EXPECT_EQ(v_read, Value("alice"));
     } while(0);
     // L227: commit(tx2)
-    txn_tx2->commit();
+    txn_tx2->commit_or_abort();
     delete txn_tx2;
     // L229: end_test
     delete tbl_student;
@@ -743,7 +743,7 @@ TEST(txn_gen, 7) {
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
     // L234: commit(tx1)
-    txn_tx1->commit();
+    txn_tx1->commit_or_abort();
     delete txn_tx1;
     // L236: begin(tx2a)
     Txn* txn_tx2a = txnmgr.start(2314037222045390847);
@@ -785,13 +785,13 @@ TEST(txn_gen, 7) {
         EXPECT_TRUE(txn_tx2a->read_column(query_row, 1, &v_read));
     } while(0);
     // L242: commit(tx2) -> ok
-    EXPECT_TRUE(txn_tx2->commit());
+    EXPECT_TRUE(txn_tx2->commit_or_abort());
     delete txn_tx2;
     // L243: commit(tx2b) -> ok
-    EXPECT_TRUE(txn_tx2b->commit());
+    EXPECT_TRUE(txn_tx2b->commit_or_abort());
     delete txn_tx2b;
     // L244: commit(tx2a) -> fail
-    EXPECT_FALSE(txn_tx2a->commit());
+    EXPECT_FALSE(txn_tx2a->commit_or_abort());
     delete txn_tx2a;
     // L245: end_test
     delete tbl_student;
@@ -814,7 +814,7 @@ TEST(txn_gen, crashy) {
         EXPECT_TRUE(txn_tx1->insert_row(tbl_student, insert_row));
     }
     // L251: commit(tx1) -> ok
-    EXPECT_TRUE(txn_tx1->commit());
+    EXPECT_TRUE(txn_tx1->commit_or_abort());
     delete txn_tx1;
     // L253: begin(tx2)
     Txn* txn_tx2 = txnmgr.start(-1495230934652649123);
@@ -843,10 +843,10 @@ TEST(txn_gen, crashy) {
         EXPECT_TRUE(txn_tx3->remove_row(tbl_student, query_row));
     } while(0);
     // L257: commit(tx3) -> ok
-    EXPECT_TRUE(txn_tx3->commit());
+    EXPECT_TRUE(txn_tx3->commit_or_abort());
     delete txn_tx3;
     // L260: commit(tx2) -> fail
-    EXPECT_FALSE(txn_tx2->commit());
+    EXPECT_FALSE(txn_tx2->commit_or_abort());
     delete txn_tx2;
     // L261: end_test
     delete tbl_student;

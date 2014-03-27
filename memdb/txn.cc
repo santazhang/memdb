@@ -800,6 +800,7 @@ void TxnOCC::commit_confirm() {
     }
     for (auto& it : removes_) {
         // remove the locks since the row has gone already
+        locks_.erase(it.row);
         it.table->remove(it.row);
     }
     outcome_ = symbol_t::TXN_COMMIT;
@@ -880,7 +881,8 @@ bool TxnOCC::insert_row(Table* tbl, Row* row) {
     verify(row->rtti() == symbol_t::ROW_VERSIONED);
     verify(row->get_table() == nullptr);
 
-    incr_row_refcount(row);
+    // we dont need to incr_row_refcount(row), because it is
+    // only problematic for read/write
 
     inserts_.insert(table_row_pair(tbl, row));
     removes_.erase(table_row_pair(tbl, row));
@@ -891,7 +893,8 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
-    incr_row_refcount(row);
+    // we dont need to incr_row_refcount(row), because it is
+    // only problematic for read/write
 
     // we need to sweep inserts_ to find the Row with exact pointer match
     auto it_pair = inserts_.equal_range(table_row_pair(tbl, row));
