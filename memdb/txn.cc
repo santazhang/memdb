@@ -599,7 +599,6 @@ ResultSet Txn2PL::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order
         }
 
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
-        // TODO ordering for snapshot table
 
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_lt(smk, order));
@@ -636,7 +635,6 @@ ResultSet Txn2PL::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order
         }
 
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
-        // TODO ordering for snapshot table
 
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_gt(smk, order));
@@ -674,7 +672,6 @@ ResultSet Txn2PL::query_in(Table* tbl, const SortedMultiKey& low, const SortedMu
         }
 
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
-        // TODO ordering for snapshot table
 
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->query_in(low, high, order));
@@ -715,7 +712,7 @@ ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
         }
 
     } else if (tbl->rtti() == TBL_SNAPSHOT) {
-        // TODO ordering for snapshot table
+
         SnapshotTable* t = (SnapshotTable *) tbl;
         SnapshotTable::Cursor* cursor = new SnapshotTable::Cursor(t->all(order));
         merged_cursor = new MergedCursor(tbl, cursor, inserts_begin, inserts_end, removes_);

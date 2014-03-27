@@ -287,7 +287,8 @@ public:
         }
     }
 
-    void insert(range_type range) {
+    template <class RangeType>
+    void insert(RangeType range) {
         verify(writable());
         ver_++;
         while (range) {
@@ -363,8 +364,8 @@ public:
 
     void erase(const range_type& range) {
         verify(writable());
-        typename std::multimap<Key, versioned_value<Value>>::iterator begin = range.begin();
-        typename std::multimap<Key, versioned_value<Value>>::iterator end = range.end();
+        typename range_type::iterator begin = range.begin();
+        typename range_type::iterator end = range.end();
         version_t orig_ver = ver_;
         ver_++;
         if (has_readonly_snapshot()) {
@@ -382,6 +383,27 @@ public:
         }
     }
 
+    void erase(const reverse_range_type& range) {
+        verify(writable());
+        typename reverse_range_type::iterator begin = range.begin();
+        typename reverse_range_type::iterator end = range.end();
+        version_t orig_ver = ver_;
+        ver_++;
+        if (has_readonly_snapshot()) {
+            auto it = begin;
+            while (it != end) {
+                if (it->second.valid_at(orig_ver)) {
+                    // only remove visible values
+                    it->second.remove(ver_);
+                }
+                ++it;
+            }
+        } else {
+            // nobody can observe the removed range, so directly erase it
+            ssg_->data.erase(end.base(), begin.base());
+        }
+    }
+
     range_type all() const {
         return range_type(this->snapshot(), this->ssg_->data.begin(), this->ssg_->data.end());
     }
@@ -396,8 +418,8 @@ public:
 
     reverse_range_type reverse_query(const Key& key) const {
         return reverse_range_type(this->snapshot(),
-                                  reverse_range_type::iterator(this->ssg_->data.upper_bound(key)),
-                                  reverse_range_type::iterator(this->ssg_->data.lower_bound(key)));
+                                  typename reverse_range_type::iterator(this->ssg_->data.upper_bound(key)),
+                                  typename reverse_range_type::iterator(this->ssg_->data.lower_bound(key)));
     }
 
     range_type query_lt(const Key& key) const {
@@ -406,7 +428,7 @@ public:
 
     reverse_range_type reverse_query_lt(const Key& key) const {
         return reverse_range_type(this->snapshot(),
-                                  reverse_range_type::iterator(this->ssg_->data.lower_bound(key)),
+                                  typename reverse_range_type::iterator(this->ssg_->data.lower_bound(key)),
                                   this->ssg_->data.rend());
     }
 
@@ -417,7 +439,7 @@ public:
     reverse_range_type reverse_query_gt(const Key& key) const {
         return reverse_range_type(this->snapshot(),
                                   this->ssg_->data.rbegin(),
-                                  reverse_range_type::iterator(this->ssg_->data.upper_bound(key)));
+                                  typename reverse_range_type::iterator(this->ssg_->data.upper_bound(key)));
     }
 
     range_type query_in(const Key& low, const Key& high) const {
@@ -426,8 +448,8 @@ public:
 
     reverse_range_type reverse_query_in(const Key& low, const Key& high) const {
         return reverse_range_type(this->snapshot(),
-                                  reverse_range_type::iterator(this->ssg_->data.upper_bound(high)),
-                                  reverse_range_type::iterator(this->ssg_->data.lower_bound(low)));
+                                  typename reverse_range_type::iterator(this->ssg_->data.upper_bound(high)),
+                                  typename reverse_range_type::iterator(this->ssg_->data.lower_bound(low)));
     }
 
     size_t gc_size() const {

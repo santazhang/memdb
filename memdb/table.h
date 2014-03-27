@@ -357,21 +357,45 @@ class SnapshotTable: public Table {
 public:
 
     class Cursor: public Enumerator<const Row*> {
-        table_type::range_type range_;
+        table_type::range_type* range_;
+        table_type::reverse_range_type* reverse_range_;
     public:
-        Cursor(const table_type::range_type& range): range_(range) {}
+        Cursor(const table_type::range_type& range): reverse_range_(nullptr) {
+            range_ = new table_type::range_type(range);
+        }
+        Cursor(const table_type::reverse_range_type& range): range_(nullptr) {
+            reverse_range_ = new table_type::reverse_range_type(range);
+        }
         virtual bool has_next() {
-            return range_.has_next();
+            if (range_ != nullptr) {
+                return range_->has_next();
+            } else {
+                return reverse_range_->has_next();
+            }
         }
         virtual const Row* next() {
             verify(has_next());
-            return range_.next().second.get();
+            if (range_ != nullptr) {
+                return range_->next().second.get();
+            } else {
+                return reverse_range_->next().second.get();
+            }
         }
         int count() {
-            return range_.count();
+            if (range_ != nullptr) {
+                return range_->count();
+            } else {
+                return reverse_range_->count();
+            }
+        }
+        bool is_reverse() const {
+            return reverse_range_ != nullptr;
         }
         const table_type::range_type& get_range() const {
-            return range_;
+            return *range_;
+        }
+        const table_type::reverse_range_type& get_reverse_range() const {
+            return *reverse_range_;
         }
     };
 
@@ -414,9 +438,12 @@ public:
         return query_lt(SortedMultiKey(mb, schema_), order);
     }
     Cursor query_lt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
-        // TODO ordering
         verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
-        return Cursor(rows_.query_lt(smk));
+        if (order == symbol_t::ORD_DESC) {
+            return Cursor(rows_.reverse_query_lt(smk));
+        } else {
+            return Cursor(rows_.query_lt(smk));
+        }
     }
 
     Cursor query_gt(const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
@@ -426,9 +453,12 @@ public:
         return query_gt(SortedMultiKey(mb, schema_), order);
     }
     Cursor query_gt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
-        // TODO ordering
         verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
-        return Cursor(rows_.query_gt(smk));
+        if (order == symbol_t::ORD_DESC) {
+            return Cursor(rows_.reverse_query_gt(smk));
+        } else {
+            return Cursor(rows_.query_gt(smk));
+        }
     }
 
     Cursor query_in(const Value& low, const Value& high, symbol_t order = symbol_t::ORD_ASC) {
@@ -438,16 +468,22 @@ public:
         return query_in(SortedMultiKey(low, schema_), SortedMultiKey(high, schema_), order);
     }
     Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC) {
-        // TODO ordering
         verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
         verify(low < high);
-        return Cursor(rows_.query_in(low, high));
+        if (order == symbol_t::ORD_DESC) {
+            return Cursor(rows_.reverse_query_in(low, high));
+        } else {
+            return Cursor(rows_.query_in(low, high));
+        }
     }
 
     Cursor all(symbol_t order = symbol_t::ORD_ASC) const {
-        // TODO ordering
         verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
-        return Cursor(rows_.all());
+        if (order == symbol_t::ORD_DESC) {
+            return Cursor(rows_.reverse_all());
+        } else {
+            return Cursor(rows_.all());
+        }
     }
 
     void clear() {
@@ -473,7 +509,11 @@ public:
     }
 
     void remove(const Cursor& cur) {
-        rows_.erase(cur.get_range());
+        if (cur.is_reverse()) {
+            rows_.erase(cur.get_reverse_range());
+        } else {
+            rows_.erase(cur.get_range());
+        }
     }
 };
 
