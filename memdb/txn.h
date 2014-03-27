@@ -328,6 +328,10 @@ class TxnOCC: public Txn2PL {
     // whether the commit has been verified
     bool verified_;
 
+    // OCC_LAZY: update version only at commit time
+    // OCC_EAGER (default): update version at first write (early conflict detection)
+    symbol_t policy_;
+
     std::map<std::string, SnapshotTable*> snapshots_;
     std::set<Table*> snapshot_tables_;
 
@@ -336,7 +340,7 @@ class TxnOCC: public Txn2PL {
     void release_resource();
 
 public:
-    TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid), verified_(false) {}
+    TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid), verified_(false), policy_(symbol_t::OCC_EAGER) {}
 
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid, const std::vector<std::string>& table_names);
 
@@ -347,6 +351,15 @@ public:
         auto it = snapshots_.find(table_name);
         verify(it != snapshots_.end());
         return it->second;
+    }
+
+    // call this before ANY operation
+    void set_policy(symbol_t policy) {
+        verify(policy == symbol_t::OCC_EAGER || policy == symbol_t::OCC_LAZY);
+        policy_ = policy;
+    }
+    symbol_t policy() const {
+        return policy_;
     }
 
     virtual void abort();

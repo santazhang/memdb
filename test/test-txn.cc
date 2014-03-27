@@ -144,8 +144,8 @@ TEST(txn, basic_op_occ) {
     Txn* txn6 = txnmgr.start(6);
     Value v2("mad alice");
     EXPECT_TRUE(txn6->write_column(r1, 1, v2));
-    EXPECT_FALSE(txn5->commit_or_abort());
     EXPECT_TRUE(txn6->commit_or_abort());
+    EXPECT_FALSE(txn5->commit_or_abort());
 
     delete txn1;
     delete txn2;

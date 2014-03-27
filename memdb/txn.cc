@@ -256,7 +256,6 @@ bool Txn2PL::commit() {
     }
     for (auto it = updates_.begin(); it != updates_.end(); /* no ++it! */) {
         Row* row = it->first;
-        column_id_t column_id = it->second.first;
         const Table* tbl = row->get_table();
         if (tbl->rtti() == TBL_SNAPSHOT) {
             // update on snapshot table (remove then insert)
@@ -265,6 +264,7 @@ bool Txn2PL::commit() {
             // batch update all values
             auto it_end = updates_.upper_bound(row);
             while (it != it_end) {
+                column_id_t column_id = it->second.first;
                 Value& value = it->second.second;
                 new_row->update(column_id, value);
                 ++it;
@@ -276,6 +276,7 @@ bool Txn2PL::commit() {
 
             redirect_locks(locks_, new_row, row);
         } else {
+            column_id_t column_id = it->second.first;
             Value& value = it->second.second;
             row->update(column_id, value);
             ++it;
@@ -848,17 +849,27 @@ void TxnOCC::commit_confirm() {
     }
     for (auto it = updates_.begin(); it != updates_.end(); /* no ++it! */) {
         Row* row = it->first;
-        column_id_t column_id = it->second.first;
+        verify(row->rtti() == ROW_VERSIONED);
+        VersionedRow* v_row = (VersionedRow *) row;
         const Table* tbl = row->get_table();
         if (tbl->rtti() == TBL_SNAPSHOT) {
             // update on snapshot table (remove then insert)
             Row* new_row = row->copy();
+            VersionedRow* v_new_row = (VersionedRow *) new_row;
 
             // batch update all values
             auto it_end = updates_.upper_bound(row);
             while (it != it_end) {
+                column_id_t column_id = it->second.first;
                 Value& value = it->second.second;
                 new_row->update(column_id, value);
+                if (policy_ == symbol_t::OCC_LAZY) {
+                    // increase version for both old and new row
+                    // so that other Txn will verify fail on old row
+                    // and also the version info is passed onto new row
+                    v_row->incr_column_ver(column_id);
+                    v_new_row->incr_column_ver(column_id);
+                }
                 ++it;
             }
 
@@ -877,12 +888,24 @@ void TxnOCC::commit_confirm() {
                 accessed_rows_.insert(new_row);
             }
         } else {
+            column_id_t column_id = it->second.first;
             Value& value = it->second.second;
             row->update(column_id, value);
+            if (policy_ == symbol_t::OCC_LAZY) {
+                v_row->incr_column_ver(column_id);
+            }
             ++it;
         }
     }
     for (auto& it : removes_) {
+        if (policy_ == symbol_t::OCC_LAZY) {
+            Row* row = it.row;
+            verify(row->rtti() == symbol_t::ROW_VERSIONED);
+            VersionedRow* v_row = (VersionedRow *) row;
+            for (size_t col_id = 0; col_id < v_row->schema()->columns_count(); col_id++) {
+                v_row->incr_column_ver(col_id);
+            }
+        }
         // remove the locks since the row has gone already
         locks_.erase(it.row);
         it.table->remove(it.row);
@@ -952,7 +975,9 @@ bool TxnOCC::write_column(Row* row, column_id_t col_id, const Value& value) {
     // update staging area, track version
     if (row->rtti() == symbol_t::ROW_VERSIONED) {
         VersionedRow* v_row = (VersionedRow *) row;
-        v_row->incr_column_ver(col_id);
+        if (policy_ == symbol_t::OCC_EAGER) {
+            v_row->incr_column_ver(col_id);
+        }
         insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
         // increase row reference count because later we are going to check its version
         incr_row_refcount(row);
@@ -1004,7 +1029,9 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
 
             // remember whole row version
             for (size_t col_id = 0; col_id < v_row->schema()->columns_count(); col_id++) {
-                v_row->incr_column_ver(col_id);
+                if (policy_ == symbol_t::OCC_EAGER) {
+                    v_row->incr_column_ver(col_id);
+                }
                 insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
                 // increase row reference count because later we are going to check its version
                 incr_row_refcount(row);
