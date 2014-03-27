@@ -235,6 +235,20 @@ void Txn2PL::abort() {
     relese_resource();
 }
 
+static void redirect_locks(unordered_multimap<Row*, column_id_t>& locks, Row* new_row, Row* old_row) {
+    auto it_pair = locks.equal_range(old_row);
+    vector<column_id_t> locked_columns;
+    for (auto it_lock = it_pair.first; it_lock != it_pair.second; ++it_lock) {
+        locked_columns.push_back(it_lock->second);
+    }
+    if (!locked_columns.empty()) {
+        locks.erase(old_row);
+    }
+    for (auto& col_id : locked_columns) {
+        insert_into_map(locks, new_row, col_id);
+    }
+}
+
 bool Txn2PL::commit() {
     verify(outcome_ == symbol_t::NONE);
     for (auto& it : inserts_) {
@@ -253,18 +267,7 @@ bool Txn2PL::commit() {
             ss_tbl->remove(row);
             ss_tbl->insert(new_row);
 
-            // redirect the locks
-            auto it_pair = locks_.equal_range(row);
-            vector<column_id_t> locked_columns;
-            for (auto it_lock = it_pair.first; it_lock != it_pair.second; ++it_lock) {
-                locked_columns.push_back(it_lock->second);
-            }
-            if (!locked_columns.empty()) {
-                locks_.erase(row);
-            }
-            for (auto& col_id : locked_columns) {
-                insert_into_map(locks_, new_row, col_id);
-            }
+            redirect_locks(locks_, new_row, row);
         } else {
             row->update(column_id, value);
         }
@@ -826,18 +829,7 @@ void TxnOCC::commit_confirm() {
             ss_tbl->remove(row);
             ss_tbl->insert(new_row);
 
-            // redirect the locks
-            auto it_pair = locks_.equal_range(row);
-            vector<column_id_t> locked_columns;
-            for (auto it_lock = it_pair.first; it_lock != it_pair.second; ++it_lock) {
-                locked_columns.push_back(it_lock->second);
-            }
-            if (!locked_columns.empty()) {
-                locks_.erase(row);
-            }
-            for (auto& col_id : locked_columns) {
-                insert_into_map(locks_, new_row, col_id);
-            }
+            redirect_locks(locks_, new_row, row);
 
             // redirect the accessed_rows_
             auto it_accessed = accessed_rows_.find(row);
