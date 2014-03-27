@@ -709,10 +709,32 @@ void TxnOCC::incr_row_refcount(Row* r) {
     }
 }
 
+bool TxnOCC::version_check() {
+    for (auto& it : ver_check_) {
+        Row* row = it.first.row;
+        column_id_t col_id = it.first.col_id;
+        version_t ver = it.second;
+        verify(row->rtti() == ROW_VERSIONED);
+        VersionedRow* v_row = (VersionedRow *) row;
+        if (v_row->get_column_ver(col_id) != ver) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void TxnOCC::relese_resource() {
     updates_.clear();
     inserts_.clear();
     removes_.clear();
+
+    for (auto& it : locks_) {
+        Row* row = it.first;
+        verify(row->rtti() == symbol_t::ROW_VERSIONED);
+        VersionedRow* v_row = (VersionedRow *) row;
+        v_row->unlock_row_by(this->id());
+    }
+    locks_.clear();
 
     // release ref copy
     for (auto& it: accessed_rows_) {
@@ -726,21 +748,45 @@ void TxnOCC::abort() {
     relese_resource();
 }
 
+
 bool TxnOCC::commit() {
     verify(outcome_ == symbol_t::NONE);
 
-    // TODO handle the case where the row being checked has already been deleted in other transactions
-    // do version checks
+    if (!this->version_check()) {
+        return false;
+    }
+    verified_ = true;
+
+    this->commit_confirm();
+    return true;
+}
+
+
+bool TxnOCC::commit_prepare() {
+    verify(outcome_ == symbol_t::NONE);
+    verify(verified_ == false);
+
+    if (!this->version_check()) {
+        return false;
+    }
+
+    // now lock the commit
     for (auto& it : ver_check_) {
         Row* row = it.first.row;
-        column_id_t col_id = it.first.col_id;
-        version_t ver = it.second;
-        verify(row->rtti() == ROW_VERSIONED);
         VersionedRow* v_row = (VersionedRow *) row;
-        if (v_row->get_column_ver(col_id) != ver) {
+        if (!v_row->wlock_row_by(this->id())) {
             return false;
         }
+        insert_into_map(locks_, row, -1);
     }
+
+    verified_ = true;
+    return true;
+}
+
+void TxnOCC::commit_confirm() {
+    verify(outcome_ == symbol_t::NONE);
+    verify(verified_ == true);
 
     for (auto& it : inserts_) {
         it.table->insert(it.row);
@@ -758,7 +804,6 @@ bool TxnOCC::commit() {
     }
     outcome_ = symbol_t::TXN_COMMIT;
     relese_resource();
-    return true;
 }
 
 

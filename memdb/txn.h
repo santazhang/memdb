@@ -301,14 +301,23 @@ class TxnOCC: public Txn2PL {
     // incr refcount on a Row whenever it gets accessed
     std::set<Row*> accessed_rows_;
 
+    // whether the commit has been verified
+    bool verified_;
+
     void incr_row_refcount(Row* r);
+    bool version_check();
     void relese_resource();
 
 public:
-    TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid) {}
+    TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid), verified_(false) {}
 
     virtual void abort();
     virtual bool commit();
+
+    // for 2 phase commit, prepare will hold writer locks on verified columns,
+    // confirm will commit updates and drop those locks
+    bool commit_prepare();
+    void commit_confirm();
 
     virtual bool read_column(Row* row, column_id_t col_id, Value* value);
     virtual bool write_column(Row* row, column_id_t col_id, const Value& value);

@@ -172,6 +172,12 @@ public:
 
 class CoarseLockedRow: public Row {
     RWLock lock;
+
+protected:
+
+    // protected dtor as required by RefCounted
+    ~CoarseLockedRow() {}
+
 public:
 
     virtual symbol_t rtti() const {
@@ -272,7 +278,8 @@ public:
 };
 
 
-class VersionedRow: public Row {
+// inherit from CoarseLockedRow since we need locking on commit phase, when doing 2 phase commit
+class VersionedRow: public CoarseLockedRow {
     version_t* ver_;
     void init_ver(int n_columns) {
         ver_ = new version_t[n_columns];
