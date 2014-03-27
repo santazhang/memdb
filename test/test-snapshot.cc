@@ -40,7 +40,8 @@ TEST(snapshot, snapshot_on_empty_table) {
     EXPECT_EQ(data.snapshot_count(), 1u);
 }
 
-static void print_range(snapshot_sortedmap<int, string>::range_type range) {
+template <class RangeType>
+static void print_range(RangeType range) {
     while (range) {
         pair<const int&, const string&> kv_pair = range.next();
         Log::debug("%d => %s", kv_pair.first, kv_pair.second.c_str());
@@ -160,6 +161,22 @@ TEST(snapshot, insert_many) {
     Log::debug("version: %d", data.version());
     EXPECT_EQ(data.all().count(), 5);
 }
+
+
+TEST(snapshot, insert_many_query_reverse) {
+    map<int, string> m;
+    m[1] = "hello";
+    m[2] = "world";
+    m[3] = "snapshot";
+    m[4] = "is";
+    m[5] = "awesome";
+    snapshot_sortedmap<int, string> data;
+    data.insert(m.begin(), m.end());
+    print_range(data.reverse_all());
+    Log::debug("version: %d", data.version());
+    EXPECT_EQ(data.reverse_all().count(), 5);
+}
+
 
 TEST(snapshot, copy_ctor) {
     map<int, string> m;
