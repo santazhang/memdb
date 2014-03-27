@@ -446,3 +446,62 @@ TEST(txn, query_sorted_table_ordering) {
 
     delete student_tbl;
 }
+
+
+TEST(txn, readonly_txn) {
+    TxnMgrOCC txnmgr;
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    Table* student_tbl = new SnapshotTable(&schema);
+    txnmgr.reg_table("student", student_tbl);
+
+    Txn* txn1 = txnmgr.start(1);
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("bob") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("calvin") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 2), Value("david") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 2), Value("elvis") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    print_result(txn1->all(student_tbl));
+    EXPECT_TRUE(txn1->commit_or_abort());
+    delete txn1;
+
+    Txn* txn2 = txnmgr.start(2);
+    Txn* txn3 = txnmgr.start(3);
+    TxnOCC* txn4 = txnmgr.start_readonly(4, {"student"});
+    // try reading something
+    print_table(txn3, student_tbl);
+    print_table(txn4, txn4->get_snapshot("student"));
+
+    // txn2 writes some thing, which will make txn3 abort, but txn4 commits since it's readonly, and works on a snapshot
+    txn2->write_column(txn2->all(student_tbl).next(), 1, Value("mad"));
+
+    EXPECT_TRUE(txn2->commit_or_abort());
+    EXPECT_FALSE(txn3->commit_or_abort());
+    EXPECT_TRUE(txn4->commit_or_abort());
+
+    delete txn2;
+    delete txn3;
+    delete txn4;
+}

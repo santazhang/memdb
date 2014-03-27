@@ -204,10 +204,10 @@ Row* table_row_pair::ROW_MIN = (Row *) 0;
 Row* table_row_pair::ROW_MAX = (Row *) ~0;
 
 Txn2PL::~Txn2PL() {
-    relese_resource();
+    release_resource();
 }
 
-void Txn2PL::relese_resource() {
+void Txn2PL::release_resource() {
     updates_.clear();
     inserts_.clear();
     removes_.clear();
@@ -232,7 +232,7 @@ void Txn2PL::relese_resource() {
 void Txn2PL::abort() {
     verify(outcome_ == symbol_t::NONE);
     outcome_ = symbol_t::TXN_ABORT;
-    relese_resource();
+    release_resource();
 }
 
 static void redirect_locks(unordered_multimap<Row*, column_id_t>& locks, Row* new_row, Row* old_row) {
@@ -287,7 +287,7 @@ bool Txn2PL::commit() {
         it.table->remove(it.row);
     }
     outcome_ = symbol_t::TXN_COMMIT;
-    relese_resource();
+    release_resource();
     return true;
 }
 
@@ -558,7 +558,7 @@ public:
 };
 
 
-ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
+ResultSet Txn2PL::do_query(Table* tbl, const MultiBlob& mb) {
     MergedCursor* merged_cursor = nullptr;
     KeyOnlySearchRow key_search_row(tbl->schema(), &mb);
 
@@ -585,7 +585,7 @@ ResultSet Txn2PL::query(Table* tbl, const MultiBlob& mb) {
 }
 
 
-ResultSet Txn2PL::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+ResultSet Txn2PL::do_query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
     verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
 
     MergedCursor* merged_cursor = nullptr;
@@ -621,7 +621,7 @@ ResultSet Txn2PL::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order
     return ResultSet(merged_cursor);
 }
 
-ResultSet Txn2PL::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+ResultSet Txn2PL::do_query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
     verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
 
     MergedCursor* merged_cursor = nullptr;
@@ -657,7 +657,7 @@ ResultSet Txn2PL::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order
     return ResultSet(merged_cursor);
 }
 
-ResultSet Txn2PL::query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
+ResultSet Txn2PL::do_query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
     verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
 
     MergedCursor* merged_cursor = nullptr;
@@ -695,7 +695,7 @@ ResultSet Txn2PL::query_in(Table* tbl, const SortedMultiKey& low, const SortedMu
 }
 
 
-ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
+ResultSet Txn2PL::do_all(Table* tbl, symbol_t order /* =? */) {
     verify(order == symbol_t::ORD_ASC || order == symbol_t::ORD_DESC || order == symbol_t::ORD_ANY);
     MergedCursor* merged_cursor = nullptr;
 
@@ -733,6 +733,17 @@ ResultSet Txn2PL::all(Table* tbl, symbol_t order /* =? */) {
     return ResultSet(merged_cursor);
 }
 
+
+
+TxnOCC::TxnOCC(const TxnMgr* mgr, txn_id_t txnid, const std::vector<std::string>& table_names): Txn2PL(mgr, txnid), verified_(false) {
+    for (auto& it: table_names) {
+        SnapshotTable* tbl = get_snapshot_table(it);
+        SnapshotTable* snapshot = tbl->snapshot();
+        insert_into_map(snapshots_, it, snapshot);
+        snapshot_tables_.insert(snapshot);
+    }
+}
+
 void TxnOCC::incr_row_refcount(Row* r) {
     if (accessed_rows_.find(r) == accessed_rows_.end()) {
         r->ref_copy();
@@ -741,6 +752,9 @@ void TxnOCC::incr_row_refcount(Row* r) {
 }
 
 bool TxnOCC::version_check() {
+    if (is_readonly()) {
+        return true;
+    }
     for (auto& it : ver_check_) {
         Row* row = it.first.row;
         column_id_t col_id = it.first.col_id;
@@ -754,7 +768,7 @@ bool TxnOCC::version_check() {
     return true;
 }
 
-void TxnOCC::relese_resource() {
+void TxnOCC::release_resource() {
     updates_.clear();
     inserts_.clear();
     removes_.clear();
@@ -767,16 +781,26 @@ void TxnOCC::relese_resource() {
     }
     locks_.clear();
 
+    ver_check_.clear();
+
     // release ref copy
     for (auto& it: accessed_rows_) {
         it->release();
     }
+    accessed_rows_.clear();
+
+    // release snapshots
+    for (auto& it: snapshot_tables_) {
+        delete it;
+    }
+    snapshot_tables_.clear();
+    snapshots_.clear();
 }
 
 void TxnOCC::abort() {
     verify(outcome_ == symbol_t::NONE);
     outcome_ = symbol_t::TXN_ABORT;
-    relese_resource();
+    release_resource();
 }
 
 
@@ -864,11 +888,16 @@ void TxnOCC::commit_confirm() {
         it.table->remove(it.row);
     }
     outcome_ = symbol_t::TXN_COMMIT;
-    relese_resource();
+    release_resource();
 }
 
 
 bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
+    if (is_readonly()) {
+        *value = row->get_column(col_id);
+        return true;
+    }
+
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
@@ -902,6 +931,7 @@ bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
 }
 
 bool TxnOCC::write_column(Row* row, column_id_t col_id, const Value& value) {
+    verify(!is_readonly());
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
@@ -937,6 +967,7 @@ bool TxnOCC::write_column(Row* row, column_id_t col_id, const Value& value) {
 }
 
 bool TxnOCC::insert_row(Table* tbl, Row* row) {
+    verify(!is_readonly());
     verify(outcome_ == symbol_t::NONE);
     verify(row->rtti() == symbol_t::ROW_VERSIONED);
     verify(row->get_table() == nullptr);
@@ -950,6 +981,7 @@ bool TxnOCC::insert_row(Table* tbl, Row* row) {
 }
 
 bool TxnOCC::remove_row(Table* tbl, Row* row) {
+    verify(!is_readonly());
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 

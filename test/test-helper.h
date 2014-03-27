@@ -5,6 +5,7 @@
 #include "base/all.h"
 #include "memdb/row.h"
 #include "memdb/schema.h"
+#include "memdb/txn.h"
 
 
 template <class T>
@@ -40,11 +41,25 @@ bool rows_are_sorted(EnumeratorOfRows rows, mdb::symbol_t order = mdb::symbol_t:
 }
 
 
-inline void print_row(mdb::Row* r) {
+static inline void print_row(mdb::Row* r) {
     const mdb::Schema* sch = r->schema();
     std::ostringstream ostr;
     for (auto& col : *sch) {
         ostr << " " << r->get_column(col.id);
+    }
+    base::Log::info("row:%s", ostr.str().c_str());
+}
+
+static inline void print_row(mdb::Txn* txn, mdb::Row* r) {
+    const mdb::Schema* sch = r->schema();
+    std::ostringstream ostr;
+    for (auto& col : *sch) {
+        mdb::Value v;
+        if (txn->read_column(r, col.id, &v)) {
+            ostr << " " << v;
+        } else {
+            ostr << " (read failure)";
+        }
     }
     base::Log::info("row:%s", ostr.str().c_str());
 }
@@ -57,10 +72,23 @@ void print_result(EnumeratorOfRows rows) {
     }
 }
 
+template <class EnumeratorOfRows>
+void print_result(mdb::Txn* txn, EnumeratorOfRows rows) {
+    while (rows) {
+        mdb::Row* r = rows.next();
+        print_row(txn, r);
+    }
+}
+
 
 template <class GenericTable>
 inline void print_table(GenericTable* tbl) {
     print_result(tbl->all());
+}
+
+template <class GenericTable>
+inline void print_table(mdb::Txn* txn, GenericTable* tbl) {
+    print_result(txn, txn->all(tbl));
 }
 
 

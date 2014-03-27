@@ -232,7 +232,7 @@ struct table_row_pair {
 
 class Txn2PL: public Txn {
 
-    void relese_resource();
+    void release_resource();
 
 protected:
 
@@ -251,6 +251,14 @@ protected:
         return true;
     }
 
+    ResultSet do_query(Table* tbl, const MultiBlob& mb);
+
+    ResultSet do_query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    ResultSet do_query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    ResultSet do_query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC);
+
+    ResultSet do_all(Table* tbl, symbol_t order = symbol_t::ORD_ANY);
+
 public:
 
     Txn2PL(const TxnMgr* mgr, txn_id_t txnid): Txn(mgr, txnid), outcome_(symbol_t::NONE) {}
@@ -263,13 +271,21 @@ public:
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
 
-    ResultSet query(Table* tbl, const MultiBlob& mb);
-
-    virtual ResultSet query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
-    virtual ResultSet query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
-    virtual ResultSet query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC);
-
-    virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY);
+    ResultSet query(Table* tbl, const MultiBlob& mb) {
+        return do_query(tbl, mb);
+    }
+    virtual ResultSet query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        return do_query_lt(tbl, smk, order);
+    }
+    virtual ResultSet query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        return do_query_gt(tbl, smk, order);
+    }
+    virtual ResultSet query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC) {
+        return do_query_in(tbl, low, high, order);
+    }
+    virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY) {
+        return do_all(tbl, order);
+    }
 };
 
 class TxnMgr2PL: public TxnMgr {
@@ -312,12 +328,26 @@ class TxnOCC: public Txn2PL {
     // whether the commit has been verified
     bool verified_;
 
+    std::map<std::string, SnapshotTable*> snapshots_;
+    std::set<Table*> snapshot_tables_;
+
     void incr_row_refcount(Row* r);
     bool version_check();
-    void relese_resource();
+    void release_resource();
 
 public:
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid), verified_(false) {}
+
+    TxnOCC(const TxnMgr* mgr, txn_id_t txnid, const std::vector<std::string>& table_names);
+
+    bool is_readonly() const {
+        return !snapshot_tables_.empty();
+    }
+    SnapshotTable* get_snapshot(const std::string& table_name) const {
+        auto it = snapshots_.find(table_name);
+        verify(it != snapshots_.end());
+        return it->second;
+    }
 
     virtual void abort();
     virtual bool commit();
@@ -339,12 +369,37 @@ public:
     virtual bool write_column(Row* row, column_id_t col_id, const Value& value);
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
+
+    ResultSet query(Table* tbl, const MultiBlob& mb) {
+        verify(!is_readonly() || snapshot_tables_.find(tbl) != snapshot_tables_.end());
+        return do_query(tbl, mb);
+    }
+    virtual ResultSet query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        verify(!is_readonly() || snapshot_tables_.find(tbl) != snapshot_tables_.end());
+        return do_query_lt(tbl, smk, order);
+    }
+    virtual ResultSet query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC) {
+        verify(!is_readonly() || snapshot_tables_.find(tbl) != snapshot_tables_.end());
+        return do_query_gt(tbl, smk, order);
+    }
+    virtual ResultSet query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC) {
+        verify(!is_readonly() || snapshot_tables_.find(tbl) != snapshot_tables_.end());
+        return do_query_in(tbl, low, high, order);
+    }
+    virtual ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY) {
+        verify(!is_readonly() || snapshot_tables_.find(tbl) != snapshot_tables_.end());
+        return do_all(tbl, order);
+    }
 };
 
 class TxnMgrOCC: public TxnMgr {
 public:
     virtual Txn* start(txn_id_t txnid) {
         return new TxnOCC(this, txnid);
+    }
+
+    TxnOCC* start_readonly(txn_id_t txnid, const std::vector<std::string>& table_names) {
+        return new TxnOCC(this, txnid, table_names);
     }
 };
 

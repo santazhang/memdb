@@ -366,6 +366,14 @@ public:
         Cursor(const table_type::reverse_range_type& range): range_(nullptr) {
             reverse_range_ = new table_type::reverse_range_type(range);
         }
+        ~Cursor() {
+            if (range_ != nullptr) {
+                delete range_;
+            }
+            if (reverse_range_ != nullptr) {
+                delete reverse_range_;
+            }
+        }
         virtual bool has_next() {
             if (range_ != nullptr) {
                 return range_->has_next();
