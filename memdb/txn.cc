@@ -812,8 +812,6 @@ bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
 
-    incr_row_refcount(row);
-
     if (row->get_table() == nullptr) {
         // row not inserted into table, just read from staging area
         *value = row->get_column(col_id);
@@ -832,6 +830,8 @@ bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
     if (row->rtti() == symbol_t::ROW_VERSIONED) {
         VersionedRow* v_row = (VersionedRow *) row;
         insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
+        // increase row reference count because later we are going to check its version
+        incr_row_refcount(row);
 
     } else {
         verify(row->rtti() == symbol_t::ROW_VERSIONED);
@@ -844,8 +844,6 @@ bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
 bool TxnOCC::write_column(Row* row, column_id_t col_id, const Value& value) {
     assert(debug_check_row_valid(row));
     verify(outcome_ == symbol_t::NONE);
-
-    incr_row_refcount(row);
 
     if (row->get_table() == nullptr) {
         // row not inserted into table, just write to staging area
@@ -866,6 +864,8 @@ bool TxnOCC::write_column(Row* row, column_id_t col_id, const Value& value) {
         VersionedRow* v_row = (VersionedRow *) row;
         v_row->incr_column_ver(col_id);
         insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
+        // increase row reference count because later we are going to check its version
+        incr_row_refcount(row);
 
     } else {
         // row must either be FineLockedRow or CoarseLockedRow
@@ -914,6 +914,8 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
             for (size_t col_id = 0; col_id < v_row->schema()->columns_count(); col_id++) {
                 v_row->incr_column_ver(col_id);
                 insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
+                // increase row reference count because later we are going to check its version
+                incr_row_refcount(row);
             }
 
         } else {
