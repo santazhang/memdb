@@ -114,18 +114,24 @@ TEST(row, more_cloning) {
         FineLockedRow* r1 = FineLockedRow::create(&schema, row1);
         FineLockedRow* r2 = (FineLockedRow *) r1->copy();
         r2->wlock_column_by(1, 1);
+        r1->release();
+        r2->release();
     }
 
     {
         CoarseLockedRow* r1 = CoarseLockedRow::create(&schema, row1);
         CoarseLockedRow* r2 = (CoarseLockedRow *) r1->copy();
         r2->wlock_row_by(1);
+        r1->release();
+        r2->release();
     }
 
     {
         VersionedRow* r1 = VersionedRow::create(&schema, row1);
         VersionedRow* r2 = (VersionedRow *) r1->copy();
         r2->incr_column_ver(1);
+        r1->release();
+        r2->release();
     }
 }
 
