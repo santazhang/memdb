@@ -60,7 +60,7 @@ static void benchmark_kv(TxnMgr* mgr, symbol_t table_type, symbol_t row_type) {
                 //row->update(1, Value("dummy 2"));
                 txn->write_column(row, 1, Value("dummy 2"));
             }
-            txn->commit();
+            txn->commit_or_abort();
             delete txn;
         }
         n_batches++;

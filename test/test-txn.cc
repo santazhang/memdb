@@ -22,7 +22,7 @@ TEST(txn, basic_op_unsafe) {
     vector<Value> row1 = { Value((i32) 1), Value("alice") };
     Row* r1 = Row::create(schema, row1);
     txn1->insert_row(student_tbl, r1);
-    txn1->commit();
+    txn1->commit_or_abort();
 
     Txn* txn2 = txnmgr.start(2);
     Row* r = txn2->get_unsorted_table("student")->query(Value(i32(1))).next();
@@ -34,7 +34,7 @@ TEST(txn, basic_op_unsafe) {
     Txn* txn3 = txnmgr.start(3);
     r = txn2->get_unsorted_table("student")->query(Value(i32(1))).next();
     txn3->write_column(r, 1, Value("bob"));
-    txn3->commit();
+    txn3->commit_or_abort();
 
     Txn* txn4 = txnmgr.start(4);
     r = txn4->get_unsorted_table("student")->query(Value(i32(1))).next();
@@ -67,7 +67,7 @@ TEST(txn, basic_op_2pl) {
     vector<Value> row1 = { Value((i32) 1), Value("alice") };
     FineLockedRow* r1 = FineLockedRow::create(schema, row1);
     txn1->insert_row(student_tbl, r1);
-    txn1->commit();
+    txn1->commit_or_abort();
 
     Txn* txn2 = txnmgr.start(2);
     Row* r = txn2->get_unsorted_table("student")->query(Value(i32(1))).next();
@@ -79,7 +79,7 @@ TEST(txn, basic_op_2pl) {
     Txn* txn3 = txnmgr.start(3);
     r = txn2->get_unsorted_table("student")->query(Value(i32(1))).next();
     txn3->write_column(r, 1, Value("bob"));
-    txn3->commit();
+    txn3->commit_or_abort();
 
     Txn* txn4 = txnmgr.start(4);
     r = txn4->get_unsorted_table("student")->query(Value(i32(1))).next();
@@ -111,7 +111,7 @@ TEST(txn, basic_op_occ) {
     vector<Value> row1 = { Value((i32) 1), Value("alice") };
     VersionedRow* r1 = VersionedRow::create(&schema, row1);
     EXPECT_TRUE(txn1->insert_row(student_tbl, r1));
-    EXPECT_TRUE(txn1->commit());
+    EXPECT_TRUE(txn1->commit_or_abort());
 
     Txn* txn2 = txnmgr.start(2);
     Txn* txn3 = txnmgr.start(3);
@@ -121,9 +121,9 @@ TEST(txn, basic_op_occ) {
     VersionedRow* r3 = VersionedRow::create(&schema, row3);
     EXPECT_TRUE(txn2->insert_row(student_tbl, r2));
     EXPECT_TRUE(txn3->insert_row(student_tbl, r3));
-    EXPECT_TRUE(txn2->commit());
+    EXPECT_TRUE(txn2->commit_or_abort());
     print_result(txn3->all(student_tbl));
-    EXPECT_TRUE(txn3->commit());
+    EXPECT_TRUE(txn3->commit_or_abort());
 
     Txn* txn4 = txnmgr.start(4);
     EXPECT_EQ(enumerator_count(txn4->all(student_tbl)), 3);
@@ -144,8 +144,8 @@ TEST(txn, basic_op_occ) {
     Txn* txn6 = txnmgr.start(6);
     Value v2("mad alice");
     EXPECT_TRUE(txn6->write_column(r1, 1, v2));
-    EXPECT_FALSE(txn5->commit());
-    EXPECT_TRUE(txn6->commit());
+    EXPECT_FALSE(txn5->commit_or_abort());
+    EXPECT_TRUE(txn6->commit_or_abort());
 
     delete txn1;
     delete txn2;
@@ -196,7 +196,7 @@ TEST(txn, 2pl_remove_dup_row_in_staging_area) {
         EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 3);
         EXPECT_EQ(txn1->all(student_tbl).next()->get_column(1), Value("alice"));
     }
-    txn1->commit();
+    txn1->commit_or_abort();
 
     delete txn1;
     delete student_tbl;
@@ -225,7 +225,7 @@ TEST(txn, query_in_unsorted_table_staging_area_while_inserting) {
     EXPECT_FALSE(rs2.has_next());
     txn2->abort();
 
-    txn1->commit();
+    txn1->commit_or_abort();
 
     Txn* txn3 = txnmgr.start(3);
     ResultSet rs3 = txn3->query(student_tbl, Value(i32(1)));
@@ -256,7 +256,7 @@ TEST(txn, query_in_unsorted_table_staging_area_while_deleting) {
     txn1->insert_row(student_tbl, r1);
     ResultSet rs1 = txn1->query(student_tbl, Value(i32(1)));
     EXPECT_TRUE(rs1.has_next());
-    txn1->commit();
+    txn1->commit_or_abort();
 
     // txn2 tries to remove row {id=1}
     Txn* txn2 = txnmgr.start(2);
@@ -274,13 +274,13 @@ TEST(txn, query_in_unsorted_table_staging_area_while_deleting) {
     txn3->abort();
 
     // now we actually remove the row {id=1}
-    txn2->commit();
+    txn2->commit_or_abort();
 
     // now txn4 cannot see the row!
     Txn* txn4 = txnmgr.start(4);
     ResultSet rs4 = txn4->query(student_tbl, Value(i32(1)));
     EXPECT_FALSE(rs4.has_next());
-    txn4->commit();
+    txn4->commit_or_abort();
 
     delete txn1;
     delete txn2;
@@ -385,7 +385,7 @@ TEST(txn, query_sorted_table_ordering) {
     EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(2)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
     EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(3)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
-    txn1->commit();
+    txn1->commit_or_abort();
     delete txn1;
 
     Txn* txn2 = txnmgr.start(2);
