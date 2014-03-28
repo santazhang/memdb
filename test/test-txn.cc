@@ -603,6 +603,162 @@ TEST(txn, query_snapshot_table_ordering) {
     delete student_tbl;
 }
 
+TEST(txn, query_occ_snapshot_table_ordering) {
+    TxnMgrOCC txnmgr;
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    Table* student_tbl = new SnapshotTable(&schema);
+    txnmgr.reg_table("student", student_tbl);
+
+    Txn* txn1 = txnmgr.start(1);
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("bob") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 1), Value("calvin") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 2), Value("david") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    {
+        vector<Value> row = { Value((i32) 2), Value("elvis") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        txn1->insert_row(student_tbl, r);
+    }
+    ResultSet rs = txn1->query(student_tbl, Value(i32(1)));
+    print_result(rs);
+    Log::debug("---");
+    rs = txn1->query(student_tbl, Value(i32(2)));
+    print_result(rs);
+    Log::debug("---");
+    rs = txn1->query(student_tbl, Value(i32(3)));
+    print_result(rs);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(0)))), 0);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(1)))), 3);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(2)))), 2);
+    EXPECT_EQ(enumerator_count(txn1->query(student_tbl, Value(i32(3)))), 0);
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(0)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(1)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(2)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query(student_tbl, Value(i32(3)))));
+    Log::debug("---");
+    print_result(txn1->all(student_tbl));
+    EXPECT_EQ(enumerator_count(txn1->all(student_tbl)), 5);
+    EXPECT_TRUE(rows_are_sorted(txn1->all(student_tbl)));
+    Log::debug("---");
+    print_result(txn1->all(student_tbl, symbol_t::ORD_DESC));
+    EXPECT_EQ(enumerator_count(txn1->all(student_tbl, symbol_t::ORD_DESC)), 5);
+    EXPECT_TRUE(rows_are_sorted(txn1->all(student_tbl, symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+
+    Log::debug("====");
+    print_result(txn1->query_lt(student_tbl,Value(i32(3))));
+    EXPECT_EQ(enumerator_count(txn1->query_lt(student_tbl, Value(i32(0)))), 0);
+    EXPECT_EQ(enumerator_count(txn1->query_lt(student_tbl, Value(i32(1)))), 0);
+    EXPECT_EQ(enumerator_count(txn1->query_lt(student_tbl, Value(i32(2)))), 3);
+    EXPECT_EQ(enumerator_count(txn1->query_lt(student_tbl, Value(i32(3)))), 5);
+    EXPECT_EQ(enumerator_count(txn1->query_gt(student_tbl, Value(i32(0)))), 5);
+    EXPECT_EQ(enumerator_count(txn1->query_gt(student_tbl, Value(i32(1)))), 2);
+    EXPECT_EQ(enumerator_count(txn1->query_gt(student_tbl, Value(i32(2)))), 0);
+    EXPECT_EQ(enumerator_count(txn1->query_gt(student_tbl, Value(i32(3)))), 0);
+
+    EXPECT_EQ(enumerator_count(txn1->query_in(student_tbl, Value(i32(0)), Value(i32(3)))), 5);
+    EXPECT_EQ(enumerator_count(txn1->query_in(student_tbl, Value(i32(1)), Value(i32(2)))), 0);
+    EXPECT_EQ(enumerator_count(txn1->query_in(student_tbl, Value(i32(0)), Value(i32(2)))), 3);
+    EXPECT_EQ(enumerator_count(txn1->query_in(student_tbl, Value(i32(1)), Value(i32(3)))), 2);
+
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(0)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(1)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(2)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(3)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(0)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(1)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(2)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_lt(student_tbl, Value(i32(3)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(0)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(1)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(2)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(3)))));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(0)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(1)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(2)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn1->query_gt(student_tbl, Value(i32(3)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    txn1->commit_or_abort();
+    delete txn1;
+
+    TxnOCC* txn2 = txnmgr.start_readonly(2, {"student"});
+    Table* student_snapshot = txn2->get_snapshot("student");
+
+    EXPECT_EQ(enumerator_count(txn2->query(student_snapshot, Value(i32(0)))), 0);
+    EXPECT_EQ(enumerator_count(txn2->query(student_snapshot, Value(i32(1)))), 3);
+    EXPECT_EQ(enumerator_count(txn2->query(student_snapshot, Value(i32(2)))), 2);
+    EXPECT_EQ(enumerator_count(txn2->query(student_snapshot, Value(i32(3)))), 0);
+    EXPECT_TRUE(rows_are_sorted(txn2->query(student_snapshot, Value(i32(0)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query(student_snapshot, Value(i32(1)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query(student_snapshot, Value(i32(2)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query(student_snapshot, Value(i32(3)))));
+    Log::debug("-- txn2->all(student_snapshot) --");
+    print_result(txn2->all(student_snapshot));
+    print_result(((SnapshotTable *)student_snapshot)->all());
+    EXPECT_EQ(enumerator_count(txn2->all(student_snapshot)), 5);
+    EXPECT_TRUE(rows_are_sorted(txn2->all(student_snapshot)));
+    Log::debug("---");
+    print_result(txn2->all(student_snapshot, symbol_t::ORD_DESC));
+    EXPECT_EQ(enumerator_count(txn2->all(student_snapshot, symbol_t::ORD_DESC)), 5);
+    EXPECT_TRUE(rows_are_sorted(txn2->all(student_snapshot, symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    Log::debug("====");
+    print_result(txn2->query_lt(student_snapshot,Value(i32(3))));
+    EXPECT_EQ(enumerator_count(txn2->query_lt(student_snapshot, Value(i32(0)))), 0);
+    EXPECT_EQ(enumerator_count(txn2->query_lt(student_snapshot, Value(i32(1)))), 0);
+    EXPECT_EQ(enumerator_count(txn2->query_lt(student_snapshot, Value(i32(2)))), 3);
+    EXPECT_EQ(enumerator_count(txn2->query_lt(student_snapshot, Value(i32(3)))), 5);
+    EXPECT_EQ(enumerator_count(txn2->query_gt(student_snapshot, Value(i32(0)))), 5);
+    EXPECT_EQ(enumerator_count(txn2->query_gt(student_snapshot, Value(i32(1)))), 2);
+    EXPECT_EQ(enumerator_count(txn2->query_gt(student_snapshot, Value(i32(2)))), 0);
+    EXPECT_EQ(enumerator_count(txn2->query_gt(student_snapshot, Value(i32(3)))), 0);
+
+    EXPECT_EQ(enumerator_count(txn2->query_in(student_snapshot, Value(i32(0)), Value(i32(3)))), 5);
+    EXPECT_EQ(enumerator_count(txn2->query_in(student_snapshot, Value(i32(1)), Value(i32(2)))), 0);
+    EXPECT_EQ(enumerator_count(txn2->query_in(student_snapshot, Value(i32(0)), Value(i32(2)))), 3);
+    EXPECT_EQ(enumerator_count(txn2->query_in(student_snapshot, Value(i32(1)), Value(i32(3)))), 2);
+
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(0)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(1)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(2)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(3)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(0)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(1)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(2)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_lt(student_snapshot, Value(i32(3)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(0)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(1)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(2)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(3)))));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(0)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(1)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(2)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(txn2->query_gt(student_snapshot, Value(i32(3)), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    txn2->abort();
+    delete txn2;
+
+    delete student_tbl;
+}
 
 TEST(txn, readonly_txn) {
     TxnMgrOCC txnmgr;

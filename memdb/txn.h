@@ -383,6 +383,11 @@ public:
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
 
+    using Txn::query;
+    using Txn::query_lt;
+    using Txn::query_gt;
+    using Txn::query_in;
+
     ResultSet query(Table* tbl, const MultiBlob& mb) {
         verify(!is_readonly() || snapshot_tables_.find(tbl) != snapshot_tables_.end());
         return do_query(tbl, mb);
