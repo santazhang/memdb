@@ -38,6 +38,8 @@ static void benchmark_kv(TxnMgr* mgr, symbol_t table_type, symbol_t row_type) {
             row = CoarseLockedRow::create(schema, row_data);
         } else if (row_type == ROW_FINE) {
             row = FineLockedRow::create(schema, row_data);
+        } else if (row_type == ROW_VERSIONED) {
+            row = VersionedRow::create(schema, row_data);
         }
         table->insert(row);
     }
@@ -76,12 +78,52 @@ static void benchmark_kv(TxnMgr* mgr, symbol_t table_type, symbol_t row_type) {
     delete schema;
 }
 
-TEST(benchmark, kv_unsafe) {
+TEST(benchmark, kv_unsafe_unsorted) {
     TxnMgrUnsafe mgr;
     benchmark_kv(&mgr, TBL_UNSORTED, ROW_BASIC);
 }
 
-TEST(benchmark, kv_2pl) {
+TEST(benchmark, kv_2pl_unsorted) {
     TxnMgr2PL mgr;
     benchmark_kv(&mgr, TBL_UNSORTED, ROW_FINE);
+}
+
+TEST(benchmark, kv_occ_unsorted) {
+    TxnMgrOCC mgr;
+    benchmark_kv(&mgr, TBL_UNSORTED, ROW_VERSIONED);
+}
+
+TEST(benchmark, kv_unsafe_sorted) {
+    TxnMgrUnsafe mgr;
+    benchmark_kv(&mgr, TBL_SORTED, ROW_BASIC);
+}
+
+TEST(benchmark, kv_2pl_sorted_coarse) {
+    TxnMgr2PL mgr;
+    benchmark_kv(&mgr, TBL_SORTED, ROW_COARSE);
+}
+
+TEST(benchmark, kv_2pl_sorted_fine) {
+    TxnMgr2PL mgr;
+    benchmark_kv(&mgr, TBL_SORTED, ROW_FINE);
+}
+
+TEST(benchmark, kv_occ_sorted) {
+    TxnMgrOCC mgr;
+    benchmark_kv(&mgr, TBL_SORTED, ROW_VERSIONED);
+}
+
+TEST(benchmark, kv_2pl_snapshot_coarse) {
+    TxnMgr2PL mgr;
+    benchmark_kv(&mgr, TBL_SNAPSHOT, ROW_COARSE);
+}
+
+TEST(benchmark, kv_2pl_snapshot_fine) {
+    TxnMgr2PL mgr;
+    benchmark_kv(&mgr, TBL_SNAPSHOT, ROW_FINE);
+}
+
+TEST(benchmark, kv_occ_snapshot) {
+    TxnMgrOCC mgr;
+    benchmark_kv(&mgr, TBL_SNAPSHOT, ROW_VERSIONED);
 }
