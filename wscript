@@ -1,5 +1,5 @@
 APPNAME="memdb"
-VERSION="0.1"
+VERSION="0.2"
 
 def options(opt):
     opt.load("compiler_cxx")
