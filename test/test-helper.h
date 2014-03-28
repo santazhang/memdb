@@ -41,7 +41,7 @@ bool rows_are_sorted(EnumeratorOfRows rows, mdb::symbol_t order = mdb::symbol_t:
 }
 
 
-static inline void print_row(mdb::Row* r) {
+static inline void print_row(const mdb::Row* r) {
     const mdb::Schema* sch = r->schema();
     std::ostringstream ostr;
     for (auto& col : *sch) {
@@ -67,7 +67,7 @@ static inline void print_row(mdb::Txn* txn, mdb::Row* r) {
 template <class EnumeratorOfRows>
 void print_result(EnumeratorOfRows rows) {
     while (rows) {
-        mdb::Row* r = rows.next();
+        const mdb::Row* r = rows.next();
         print_row(r);
     }
 }

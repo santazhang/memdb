@@ -202,6 +202,7 @@ public:
         }
     }
 
+    // (low, high) not inclusive
     Cursor query_in(const Value& low, const Value& high, symbol_t order = symbol_t::ORD_ASC) {
         return query_in(low.get_blob(), high.get_blob(), order);
     }
@@ -469,6 +470,7 @@ public:
         }
     }
 
+    // (low, high) not inclusive
     Cursor query_in(const Value& low, const Value& high, symbol_t order = symbol_t::ORD_ASC) {
         return query_in(low.get_blob(), high.get_blob(), order);
     }

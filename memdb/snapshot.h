@@ -442,14 +442,16 @@ public:
                                   typename reverse_range_type::iterator(this->ssg_->data.upper_bound(key)));
     }
 
+    // (low, high) not inclusive
     range_type query_in(const Key& low, const Key& high) const {
-        return range_type(this->snapshot(), this->ssg_->data.lower_bound(low), this->ssg_->data.upper_bound(high));
+        return range_type(this->snapshot(), this->ssg_->data.upper_bound(low), this->ssg_->data.lower_bound(high));
     }
 
+    // (low, high) not inclusive
     reverse_range_type reverse_query_in(const Key& low, const Key& high) const {
         return reverse_range_type(this->snapshot(),
-                                  typename reverse_range_type::iterator(this->ssg_->data.upper_bound(high)),
-                                  typename reverse_range_type::iterator(this->ssg_->data.lower_bound(low)));
+                                  typename reverse_range_type::iterator(this->ssg_->data.lower_bound(high)),
+                                  typename reverse_range_type::iterator(this->ssg_->data.upper_bound(low)));
     }
 
     size_t gc_size() const {
