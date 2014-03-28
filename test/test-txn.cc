@@ -504,4 +504,6 @@ TEST(txn, readonly_txn) {
     delete txn2;
     delete txn3;
     delete txn4;
+
+    delete student_tbl;
 }
