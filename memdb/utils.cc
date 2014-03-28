@@ -1,6 +1,7 @@
 #include <unistd.h>
 
 #include "MurmurHash3.h"
+#include "xxhash.h"
 
 #include "utils.h"
 
@@ -9,7 +10,8 @@ namespace mdb {
 uint32_t stringhash32(const void* data, int len) {
     uint32_t hash_value;
     static int seed = getpid();
-    MurmurHash3_x86_32(data, len, seed, &hash_value);
+    // MurmurHash3_x86_32(data, len, seed, &hash_value);
+    hash_value = XXH32(data, len, seed);
     return hash_value;
 }
 
