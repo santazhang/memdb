@@ -261,7 +261,7 @@ int Row::compare(const Row& o) const {
     return mine.compare(other);
 }
 
-Row* Row::create(Schema* schema, const std::map<std::string, Value>& values) {
+Row* Row::create(const Schema* schema, const std::map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -272,7 +272,7 @@ Row* Row::create(Schema* schema, const std::map<std::string, Value>& values) {
     return Row::create(new Row(), schema, values_ptr);
 }
 
-Row* Row::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
+Row* Row::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -284,7 +284,7 @@ Row* Row::create(Schema* schema, const std::unordered_map<std::string, Value>& v
 }
 
 
-Row* Row::create(Row* raw_row, Schema* schema, const std::vector<const Value*>& values) {
+Row* Row::create(Row* raw_row, const Schema* schema, const std::vector<const Value*>& values) {
     Row* row = raw_row;
     row->schema_ = schema;
     row->fixed_part_ = new char[schema->fixed_part_size_];
@@ -340,7 +340,7 @@ Row* Row::create(Row* raw_row, Schema* schema, const std::vector<const Value*>& 
 }
 
 
-CoarseLockedRow* CoarseLockedRow::create(Schema* schema, const std::map<std::string, Value>& values) {
+CoarseLockedRow* CoarseLockedRow::create(const Schema* schema, const std::map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -351,7 +351,7 @@ CoarseLockedRow* CoarseLockedRow::create(Schema* schema, const std::map<std::str
     return (CoarseLockedRow * ) Row::create(new CoarseLockedRow(), schema, values_ptr);
 }
 
-CoarseLockedRow* CoarseLockedRow::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
+CoarseLockedRow* CoarseLockedRow::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -363,7 +363,7 @@ CoarseLockedRow* CoarseLockedRow::create(Schema* schema, const std::unordered_ma
 }
 
 
-FineLockedRow* FineLockedRow::create(Schema* schema, const std::map<std::string, Value>& values) {
+FineLockedRow* FineLockedRow::create(const Schema* schema, const std::map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -376,7 +376,7 @@ FineLockedRow* FineLockedRow::create(Schema* schema, const std::map<std::string,
     return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
 }
 
-FineLockedRow* FineLockedRow::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
+FineLockedRow* FineLockedRow::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -389,7 +389,7 @@ FineLockedRow* FineLockedRow::create(Schema* schema, const std::unordered_map<st
     return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
 }
 
-VersionedRow* VersionedRow::create(Schema* schema, const std::map<std::string, Value>& values) {
+VersionedRow* VersionedRow::create(const Schema* schema, const std::map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {
@@ -402,7 +402,7 @@ VersionedRow* VersionedRow::create(Schema* schema, const std::map<std::string, V
     return (VersionedRow * ) Row::create(raw_row, schema, values_ptr);
 }
 
-VersionedRow* VersionedRow::create(Schema* schema, const std::unordered_map<std::string, Value>& values) {
+VersionedRow* VersionedRow::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
     verify(values.size() == schema->columns_count());
     std::vector<const Value*> values_ptr(values.size(), nullptr);
     for (auto& it: values) {

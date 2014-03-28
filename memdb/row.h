@@ -60,7 +60,7 @@ protected:
     void copy_into(Row* row) const;
 
     // helper function for all the create()
-    static Row* create(Row* raw_row, Schema* schema, const std::vector<const Value*>& values);
+    static Row* create(Row* raw_row, const Schema* schema, const std::vector<const Value*>& values);
 
 public:
 
@@ -162,11 +162,11 @@ public:
         return row;
     }
 
-    static Row* create(Schema* schema, const std::map<std::string, Value>& values);
-    static Row* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static Row* create(const Schema* schema, const std::map<std::string, Value>& values);
+    static Row* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
 
     template <class Container>
-    static Row* create(Schema* schema, const Container& values) {
+    static Row* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
         std::vector<const Value*> values_ptr;
         values_ptr.reserve(values.size());
@@ -213,11 +213,11 @@ public:
         return row;
     }
 
-    static CoarseLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
-    static CoarseLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static CoarseLockedRow* create(const Schema* schema, const std::map<std::string, Value>& values);
+    static CoarseLockedRow* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
 
     template <class Container>
-    static CoarseLockedRow* create(Schema* schema, const Container& values) {
+    static CoarseLockedRow* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
         std::vector<const Value*> values_ptr;
         values_ptr.reserve(values.size());
@@ -285,11 +285,11 @@ public:
         return row;
     }
 
-    static FineLockedRow* create(Schema* schema, const std::map<std::string, Value>& values);
-    static FineLockedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static FineLockedRow* create(const Schema* schema, const std::map<std::string, Value>& values);
+    static FineLockedRow* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
 
     template <class Container>
-    static FineLockedRow* create(Schema* schema, const Container& values) {
+    static FineLockedRow* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
         std::vector<const Value*> values_ptr;
         values_ptr.reserve(values.size());
@@ -345,11 +345,11 @@ public:
         return row;
     }
 
-    static VersionedRow* create(Schema* schema, const std::map<std::string, Value>& values);
-    static VersionedRow* create(Schema* schema, const std::unordered_map<std::string, Value>& values);
+    static VersionedRow* create(const Schema* schema, const std::map<std::string, Value>& values);
+    static VersionedRow* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
 
     template <class Container>
-    static VersionedRow* create(Schema* schema, const Container& values) {
+    static VersionedRow* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
         std::vector<const Value*> values_ptr;
         values_ptr.reserve(values.size());
