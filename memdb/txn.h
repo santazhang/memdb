@@ -64,9 +64,7 @@ class Txn: public NoCopy {
 protected:
     const TxnMgr* mgr_;
     txn_id_t txnid_;
-    Txn* base_; // parent for nested transaction
-    Txn(const TxnMgr* mgr, txn_id_t txnid): mgr_(mgr), txnid_(txnid), base_(nullptr) {}
-    Txn(const TxnMgr* mgr, Txn* base): mgr_(mgr), txnid_(base->id()), base_(base) {}
+    Txn(const TxnMgr* mgr, txn_id_t txnid): mgr_(mgr), txnid_(txnid) {}
 
 public:
     virtual ~Txn() {}
@@ -153,7 +151,7 @@ public:
     virtual ~TxnMgr() {}
     virtual symbol_t rtti() const = 0;
     virtual Txn* start(txn_id_t txnid) = 0;
-    virtual Txn* start_nested(Txn* base) = 0;
+    Txn* start_nested(Txn* base);
 
     void reg_table(const std::string& tbl_name, Table* tbl) {
         verify(tables_.find(tbl_name) == tables_.end());
@@ -178,7 +176,6 @@ public:
 class TxnUnsafe: public Txn {
 public:
     TxnUnsafe(const TxnMgr* mgr, txn_id_t txnid): Txn(mgr, txnid) {}
-    TxnUnsafe(const TxnMgr* mgr, Txn* base): Txn(mgr, base) {}
     virtual symbol_t rtti() const {
         return symbol_t::TXN_UNSAFE;
     }
@@ -207,10 +204,6 @@ class TxnMgrUnsafe: public TxnMgr {
 public:
     virtual Txn* start(txn_id_t txnid) {
         return new TxnUnsafe(this, txnid);
-    }
-    virtual Txn* start_nested(Txn* base) {
-        verify(this->rtti() == base->rtti());
-        return new TxnUnsafe(this, base);
     }
     virtual symbol_t rtti() const {
         return symbol_t::TXN_UNSAFE;
@@ -277,7 +270,6 @@ protected:
 public:
 
     Txn2PL(const TxnMgr* mgr, txn_id_t txnid): Txn(mgr, txnid), outcome_(symbol_t::NONE) {}
-    Txn2PL(const TxnMgr* mgr, Txn* base): Txn(mgr, base), outcome_(symbol_t::NONE) {}
     ~Txn2PL();
 
     virtual symbol_t rtti() const {
@@ -313,10 +305,6 @@ class TxnMgr2PL: public TxnMgr {
 public:
     virtual Txn* start(txn_id_t txnid) {
         return new Txn2PL(this, txnid);
-    }
-    virtual Txn* start_nested(Txn* base) {
-        verify(this->rtti() == base->rtti());
-        return new Txn2PL(this, base);
     }
     virtual symbol_t rtti() const {
         return symbol_t::TXN_2PL;
@@ -368,7 +356,6 @@ class TxnOCC: public Txn2PL {
 
 public:
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid), verified_(false), policy_(symbol_t::OCC_EAGER) {}
-    TxnOCC(const TxnMgr* mgr, Txn* base): Txn2PL(mgr, base), verified_(false), policy_(symbol_t::OCC_EAGER) {}
 
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid, const std::vector<std::string>& table_names);
 
@@ -447,10 +434,6 @@ public:
     virtual Txn* start(txn_id_t txnid) {
         return new TxnOCC(this, txnid);
     }
-    virtual Txn* start_nested(Txn* base) {
-        verify(this->rtti() == base->rtti());
-        return new TxnOCC(this, base);
-    }
 
     virtual symbol_t rtti() const {
         return symbol_t::TXN_OCC;
@@ -460,5 +443,32 @@ public:
         return new TxnOCC(this, txnid, table_names);
     }
 };
+
+
+class TxnNested: public Txn2PL {
+    Txn* base_;
+
+public:
+    TxnNested(const TxnMgr* mgr, Txn* base): Txn2PL(mgr, base->id()), base_(base) {}
+
+    virtual symbol_t rtti() const {
+        return symbol_t::TXN_NESTED;
+    }
+
+    virtual void abort();
+    virtual bool commit();
+
+    virtual bool read_column(Row* row, column_id_t col_id, Value* value);
+    virtual bool write_column(Row* row, column_id_t col_id, const Value& value);
+    virtual bool insert_row(Table* tbl, Row* row);
+    virtual bool remove_row(Table* tbl, Row* row);
+
+
+    using Txn::query;
+    using Txn::query_lt;
+    using Txn::query_gt;
+    using Txn::query_in;
+};
+
 
 } // namespace mdb

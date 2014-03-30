@@ -33,6 +33,7 @@ typedef enum {
     TBL_SNAPSHOT,
 
     TXN_UNSAFE,
+    TXN_NESTED,
     TXN_2PL,
     TXN_OCC,
 

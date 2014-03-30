@@ -37,6 +37,10 @@ ResultSet Txn::query_in(Table* tbl, const MultiBlob& low, const MultiBlob& high,
 }
 
 
+Txn* TxnMgr::start_nested(Txn* base) {
+    return new TxnNested(this, base);
+}
+
 UnsortedTable* TxnMgr::get_unsorted_table(const std::string& tbl_name) const {
     Table* tbl = get_table(tbl_name);
     if (tbl != nullptr) {
@@ -64,50 +68,30 @@ SnapshotTable* TxnMgr::get_snapshot_table(const std::string& tbl_name) const {
 
 
 bool TxnUnsafe::read_column(Row* row, column_id_t col_id, Value* value) {
-    if (base_ == nullptr) {
-        *value = row->get_column(col_id);
-        // always allowed
-        return true;
-    } else {
-        return base_->read_column(row, col_id, value);
-    }
+    *value = row->get_column(col_id);
+    // always allowed
+    return true;
 }
 
 bool TxnUnsafe::write_column(Row* row, column_id_t col_id, const Value& value) {
-    if (base_ == nullptr) {
-        row->update(col_id, value);
-        // always allowed
-        return true;
-    } else {
-        return base_->write_column(row, col_id, value);
-    }
+    row->update(col_id, value);
+    // always allowed
+    return true;
 }
 
 bool TxnUnsafe::insert_row(Table* tbl, Row* row) {
-    if (base_ == nullptr) {
-        tbl->insert(row);
-        // always allowed
-        return true;
-    } else {
-        return base_->insert_row(tbl, row);
-    }
+    tbl->insert(row);
+    // always allowed
+    return true;
 }
 
 bool TxnUnsafe::remove_row(Table* tbl, Row* row) {
-    if (base_ == nullptr) {
-        tbl->remove(row);
-        // always allowed
-        return true;
-    } else {
-        return base_->remove_row(tbl, row);
-    }
+    tbl->remove(row);
+    // always allowed
+    return true;
 }
 
 ResultSet TxnUnsafe::query(Table* tbl, const MultiBlob& mb) {
-    if (base_ != nullptr) {
-        return base_->query(tbl, mb);
-    }
-
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_UNSORTED) {
         UnsortedTable* t = (UnsortedTable *) tbl;
@@ -128,10 +112,6 @@ ResultSet TxnUnsafe::query(Table* tbl, const MultiBlob& mb) {
 }
 
 ResultSet TxnUnsafe::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
-    if (base_ != nullptr) {
-        return base_->query_lt(tbl, smk, order);
-    }
-
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
@@ -149,10 +129,6 @@ ResultSet TxnUnsafe::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t or
 }
 
 ResultSet TxnUnsafe::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
-    if (base_ != nullptr) {
-        return base_->query_gt(tbl, smk, order);
-    }
-
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
@@ -170,10 +146,6 @@ ResultSet TxnUnsafe::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t or
 }
 
 ResultSet TxnUnsafe::query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
-    if (base_ != nullptr) {
-        return base_->query_in(tbl, low, high, order);
-    }
-
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
@@ -1065,6 +1037,36 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
     updates_.erase(row);
 
     return true;
+}
+
+
+void TxnNested::abort() {
+    // TODO
+}
+
+bool TxnNested::commit() {
+    // TODO
+    return false;
+}
+
+bool TxnNested::read_column(Row* row, column_id_t col_id, Value* value) {
+    // TODO
+    return false;
+}
+
+bool TxnNested::write_column(Row* row, column_id_t col_id, const Value& value) {
+    // TODO
+    return false;
+}
+
+bool TxnNested::insert_row(Table* tbl, Row* row) {
+    // TODO
+    return false;
+}
+
+bool TxnNested::remove_row(Table* tbl, Row* row) {
+    // TODO
+    return false;
 }
 
 } // namespace mdb
