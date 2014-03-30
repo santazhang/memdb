@@ -23,19 +23,35 @@ class SortedMultiKey;
 
 typedef i64 txn_id_t;
 
+// forward declaration
+class TxnNested;
+
 class ResultSet: public Enumerator<Row*> {
+    friend class TxnNested;
+
     int* refcnt_;
+    bool unboxed_;
     Enumerator<const Row*>* rows_;
 
     void decr_ref() {
         (*refcnt_)--;
         if (*refcnt_ == 0) {
             delete refcnt_;
-            delete rows_;
+            if (!unboxed_) {
+                delete rows_;
+            }
         }
     }
+
+    // only called by TxnNested
+    Enumerator<const Row*>* unbox() {
+        verify(!unboxed_);
+        unboxed_ = true;
+        return rows_;
+    }
+
 public:
-    ResultSet(Enumerator<const Row*>* rows): refcnt_(new int(1)), rows_(rows) {}
+    ResultSet(Enumerator<const Row*>* rows): refcnt_(new int(1)), unboxed_(false), rows_(rows) {}
     ResultSet(const ResultSet& o): refcnt_(o.refcnt_), rows_(o.rows_) {
         (*refcnt_)++;
     }
@@ -447,6 +463,7 @@ public:
 
 class TxnNested: public Txn2PL {
     Txn* base_;
+    std::unordered_set<Row*> row_inserts_;
 
 public:
     TxnNested(const TxnMgr* mgr, Txn* base): Txn2PL(mgr, base->id()), base_(base) {}
@@ -463,11 +480,11 @@ public:
     virtual bool insert_row(Table* tbl, Row* row);
     virtual bool remove_row(Table* tbl, Row* row);
 
-
-    using Txn::query;
-    using Txn::query_lt;
-    using Txn::query_gt;
-    using Txn::query_in;
+    ResultSet query(Table* tbl, const MultiBlob& mb);
+    ResultSet query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    ResultSet query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+    ResultSet query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC);
+    ResultSet all(Table* tbl, symbol_t order = symbol_t::ORD_ANY);
 };
 
 
