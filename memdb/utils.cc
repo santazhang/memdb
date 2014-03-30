@@ -43,7 +43,8 @@ static inline uint64_t fmix64(uint64_t k) {
 }
 
 uint32_t inthash32(uint32_t* key, int key_length) {
-    uint32_t h = 0;
+    static int seed = getpid();
+    uint32_t h = seed;
     // http://cstheory.stackexchange.com/questions/9639/how-did-knuth-derive-a
     const uint32_t A = 0x9e3779b9;
     for (int i = 0; i < key_length; i++) {
@@ -53,7 +54,8 @@ uint32_t inthash32(uint32_t* key, int key_length) {
 }
 
 uint64_t inthash64(uint64_t* key, int key_length) {
-    uint64_t h = 0;
+    static int seed = getpid();
+    uint64_t h = seed;
     const uint64_t A = 0x9e3779b97f4a7c15;  // obtained from wolframalpha
     for (int i = 0; i < key_length; i++) {
         h = (h * A) ^ fmix64(key[i]);
