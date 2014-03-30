@@ -198,13 +198,14 @@ void Row::update(int column_id, const std::string& v) {
     // check if really updating (new data!), and if necessary to remove/insert into table
     bool re_insert = false;
 
+    blob b;
     if (kind_ == SPARSE) {
         if (this->sparse_var_[col->var_size_idx] == v) {
             return;
         }
     } else {
         verify(kind_ == DENSE);
-        blob b = this->get_blob(column_id);
+        b = this->get_blob(column_id);
         if (size_t(b.len) == v.size() && memcmp(b.data, &v[0], v.size()) == 0) {
             return;
         }
@@ -220,8 +221,13 @@ void Row::update(int column_id, const std::string& v) {
         tbl->remove(this, false);
     }
 
-    this->make_sparse();
-    this->sparse_var_[col->var_size_idx] = v;
+    if (kind_ == DENSE && size_t(b.len) == v.size()) {
+        // tiny optimization: in-place update if string size is not changed
+        memcpy(const_cast<char *>(b.data), &v[0], b.len);
+    } else {
+        this->make_sparse();
+        this->sparse_var_[col->var_size_idx] = v;
+    }
 
     if (re_insert && tbl != nullptr) {
         tbl->insert(this);
