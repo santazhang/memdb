@@ -261,28 +261,6 @@ int Row::compare(const Row& o) const {
     return mine.compare(other);
 }
 
-Row* Row::create(const Schema* schema, const std::map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    return Row::create(new Row(), schema, values_ptr);
-}
-
-Row* Row::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    return Row::create(new Row(), schema, values_ptr);
-}
-
 
 Row* Row::create(Row* raw_row, const Schema* schema, const std::vector<const Value*>& values) {
     Row* row = raw_row;
@@ -337,82 +315,6 @@ Row* Row::create(Row* raw_row, const Schema* schema, const std::vector<const Val
         verify(var_counter == schema->var_size_cols_);
     }
     return row;
-}
-
-
-CoarseLockedRow* CoarseLockedRow::create(const Schema* schema, const std::map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    return (CoarseLockedRow * ) Row::create(new CoarseLockedRow(), schema, values_ptr);
-}
-
-CoarseLockedRow* CoarseLockedRow::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    return (CoarseLockedRow * ) Row::create(new CoarseLockedRow(), schema, values_ptr);
-}
-
-
-FineLockedRow* FineLockedRow::create(const Schema* schema, const std::map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    FineLockedRow* raw_row = new FineLockedRow();
-    raw_row->init_lock(schema->columns_count());
-    return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
-}
-
-FineLockedRow* FineLockedRow::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    FineLockedRow* raw_row = new FineLockedRow();
-    raw_row->init_lock(schema->columns_count());
-    return (FineLockedRow * ) Row::create(raw_row, schema, values_ptr);
-}
-
-VersionedRow* VersionedRow::create(const Schema* schema, const std::map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    VersionedRow* raw_row = new VersionedRow();
-    raw_row->init_ver(schema->columns_count());
-    return (VersionedRow * ) Row::create(raw_row, schema, values_ptr);
-}
-
-VersionedRow* VersionedRow::create(const Schema* schema, const std::unordered_map<std::string, Value>& values) {
-    verify(values.size() == schema->columns_count());
-    std::vector<const Value*> values_ptr(values.size(), nullptr);
-    for (auto& it: values) {
-        int col_id = schema->get_column_id(it.first);
-        verify(col_id >= 0);
-        values_ptr[col_id] = &it.second;
-    }
-    VersionedRow* raw_row = new VersionedRow();
-    raw_row->init_ver(schema->columns_count());
-    return (VersionedRow * ) Row::create(raw_row, schema, values_ptr);
 }
 
 } // namespace mdb

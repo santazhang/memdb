@@ -59,8 +59,22 @@ protected:
 
     void copy_into(Row* row) const;
 
-    // helper function for all the create()
+    // generic row creation
     static Row* create(Row* raw_row, const Schema* schema, const std::vector<const Value*>& values);
+
+    // helper function for row creation
+    static void fill_values_ptr(const Schema* schema, std::vector<const Value*>& values_ptr,
+                                const Value& value, size_t fill_counter) {
+        values_ptr[fill_counter] = &value;
+    }
+
+    // helper function for row creation
+    static void fill_values_ptr(const Schema* schema, std::vector<const Value*>& values_ptr,
+                                const std::pair<const std::string, Value>& pair, size_t fill_counter) {
+        int col_id = schema->get_column_id(pair.first);
+        verify(col_id >= 0);
+        values_ptr[col_id] = &pair.second;
+    }
 
 public:
 
@@ -162,16 +176,14 @@ public:
         return row;
     }
 
-    static Row* create(const Schema* schema, const std::map<std::string, Value>& values);
-    static Row* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
-
     template <class Container>
     static Row* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
-        std::vector<const Value*> values_ptr;
-        values_ptr.reserve(values.size());
-        for (auto& it: values) {
-            values_ptr.push_back(&it);
+        std::vector<const Value*> values_ptr(values.size(), nullptr);
+        size_t fill_counter = 0;
+        for (auto it = values.begin(); it != values.end(); ++it) {
+            fill_values_ptr(schema, values_ptr, *it, fill_counter);
+            fill_counter++;
         }
         return Row::create(new Row(), schema, values_ptr);
     }
@@ -213,16 +225,14 @@ public:
         return row;
     }
 
-    static CoarseLockedRow* create(const Schema* schema, const std::map<std::string, Value>& values);
-    static CoarseLockedRow* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
-
     template <class Container>
     static CoarseLockedRow* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
-        std::vector<const Value*> values_ptr;
-        values_ptr.reserve(values.size());
-        for (auto& it: values) {
-            values_ptr.push_back(&it);
+        std::vector<const Value*> values_ptr(values.size(), nullptr);
+        size_t fill_counter = 0;
+        for (auto it = values.begin(); it != values.end(); ++it) {
+            fill_values_ptr(schema, values_ptr, *it, fill_counter);
+            fill_counter++;
         }
         return (CoarseLockedRow * ) Row::create(new CoarseLockedRow(), schema, values_ptr);
     }
@@ -285,16 +295,14 @@ public:
         return row;
     }
 
-    static FineLockedRow* create(const Schema* schema, const std::map<std::string, Value>& values);
-    static FineLockedRow* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
-
     template <class Container>
     static FineLockedRow* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
-        std::vector<const Value*> values_ptr;
-        values_ptr.reserve(values.size());
-        for (auto& it: values) {
-            values_ptr.push_back(&it);
+        std::vector<const Value*> values_ptr(values.size(), nullptr);
+        size_t fill_counter = 0;
+        for (auto it = values.begin(); it != values.end(); ++it) {
+            fill_values_ptr(schema, values_ptr, *it, fill_counter);
+            fill_counter++;
         }
         FineLockedRow* raw_row = new FineLockedRow();
         raw_row->init_lock(schema->columns_count());
@@ -345,16 +353,14 @@ public:
         return row;
     }
 
-    static VersionedRow* create(const Schema* schema, const std::map<std::string, Value>& values);
-    static VersionedRow* create(const Schema* schema, const std::unordered_map<std::string, Value>& values);
-
     template <class Container>
     static VersionedRow* create(const Schema* schema, const Container& values) {
         verify(values.size() == schema->columns_count());
-        std::vector<const Value*> values_ptr;
-        values_ptr.reserve(values.size());
-        for (auto& it: values) {
-            values_ptr.push_back(&it);
+        std::vector<const Value*> values_ptr(values.size(), nullptr);
+        size_t fill_counter = 0;
+        for (auto it = values.begin(); it != values.end(); ++it) {
+            fill_values_ptr(schema, values_ptr, *it, fill_counter);
+            fill_counter++;
         }
         VersionedRow* raw_row = new VersionedRow();
         raw_row->init_ver(schema->columns_count());

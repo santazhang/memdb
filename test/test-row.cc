@@ -33,6 +33,14 @@ TEST(row, create) {
     EXPECT_EQ(r3->get_column("name").get_str(), "cathy");
     r3->release();
 
+    multimap<string, Value> row4;
+    insert_into_map(row4, "id", Value(4));
+    insert_into_map(row4, "name", Value("david"));
+    Row* r4 = Row::create(schema, row4);
+    EXPECT_EQ(r4->get_column("id").get_i32(), 4);
+    EXPECT_EQ(r4->get_column("name").get_str(), "david");
+    r4->release();
+
     delete schema;
 }
 
