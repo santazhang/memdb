@@ -64,30 +64,50 @@ SnapshotTable* TxnMgr::get_snapshot_table(const std::string& tbl_name) const {
 
 
 bool TxnUnsafe::read_column(Row* row, column_id_t col_id, Value* value) {
-    *value = row->get_column(col_id);
-    // always allowed
-    return true;
+    if (base_ == nullptr) {
+        *value = row->get_column(col_id);
+        // always allowed
+        return true;
+    } else {
+        return base_->read_column(row, col_id, value);
+    }
 }
 
 bool TxnUnsafe::write_column(Row* row, column_id_t col_id, const Value& value) {
-    row->update(col_id, value);
-    // always allowed
-    return true;
+    if (base_ == nullptr) {
+        row->update(col_id, value);
+        // always allowed
+        return true;
+    } else {
+        return base_->write_column(row, col_id, value);
+    }
 }
 
 bool TxnUnsafe::insert_row(Table* tbl, Row* row) {
-    tbl->insert(row);
-    // always allowed
-    return true;
+    if (base_ == nullptr) {
+        tbl->insert(row);
+        // always allowed
+        return true;
+    } else {
+        return base_->insert_row(tbl, row);
+    }
 }
 
 bool TxnUnsafe::remove_row(Table* tbl, Row* row) {
-    tbl->remove(row);
-    // always allowed
-    return true;
+    if (base_ == nullptr) {
+        tbl->remove(row);
+        // always allowed
+        return true;
+    } else {
+        return base_->remove_row(tbl, row);
+    }
 }
 
 ResultSet TxnUnsafe::query(Table* tbl, const MultiBlob& mb) {
+    if (base_ != nullptr) {
+        return base_->query(tbl, mb);
+    }
+
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_UNSORTED) {
         UnsortedTable* t = (UnsortedTable *) tbl;
@@ -108,6 +128,10 @@ ResultSet TxnUnsafe::query(Table* tbl, const MultiBlob& mb) {
 }
 
 ResultSet TxnUnsafe::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+    if (base_ != nullptr) {
+        return base_->query_lt(tbl, smk, order);
+    }
+
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
@@ -125,6 +149,10 @@ ResultSet TxnUnsafe::query_lt(Table* tbl, const SortedMultiKey& smk, symbol_t or
 }
 
 ResultSet TxnUnsafe::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t order /* =? */) {
+    if (base_ != nullptr) {
+        return base_->query_gt(tbl, smk, order);
+    }
+
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
@@ -142,6 +170,10 @@ ResultSet TxnUnsafe::query_gt(Table* tbl, const SortedMultiKey& smk, symbol_t or
 }
 
 ResultSet TxnUnsafe::query_in(Table* tbl, const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
+    if (base_ != nullptr) {
+        return base_->query_in(tbl, low, high, order);
+    }
+
     // always sendback query result from raw table
     if (tbl->rtti() == TBL_SORTED) {
         SortedTable* t = (SortedTable *) tbl;
