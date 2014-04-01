@@ -32,6 +32,11 @@ public:
 
     virtual void insert(Row* row) = 0;
     virtual void remove(Row* row, bool do_free = true) = 0;
+
+    virtual void notify_update(Row* row, int updated_column_id) {
+        // used to notify IndexedTable to update secondary index
+    }
+
     virtual symbol_t rtti() const = 0;
 };
 
@@ -543,8 +548,12 @@ public:
     ~IndexedTable();
 
     void insert(Row* row) {
-        master_index* idx = nullptr;    // TODO
-        row->update(index_column_id(), (i64) idx);
+        Value ptr_value = row->get_column(index_column_id());
+        if (ptr_value.get_i64() == 0) {
+            // TODO
+            master_index* idx = new master_index;
+            row->update(index_column_id(), (i64) idx);
+        }
         this->SortedTable::insert(row);
     }
 
@@ -556,6 +565,10 @@ public:
             delete idx;
         }
         this->SortedTable::remove(row, do_free);
+    }
+    
+    virtual void notify_update(Row* row, int updated_column_id) {
+        Log::debug("*** TODO: This shall be done! (re-insert in affected secondary index)");
     }
 
     using SortedTable::remove;
