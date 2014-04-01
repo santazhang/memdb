@@ -180,6 +180,7 @@ void Row::update_fixed(const Schema::column_info* col, void* ptr, int len) {
     // save tbl_, because tbl_->remove() will set it to nullptr
     Table* tbl = tbl_;
     if (re_insert && tbl != nullptr) {
+        tbl->notify_before_update(this, col->id);
         tbl->remove(this, false);
     }
 
@@ -187,7 +188,7 @@ void Row::update_fixed(const Schema::column_info* col, void* ptr, int len) {
 
     if (re_insert && tbl != nullptr) {
         tbl->insert(this);
-        tbl->notify_update(this, col->id);
+        tbl->notify_after_update(this, col->id);
     }
 }
 
@@ -219,6 +220,7 @@ void Row::update(int column_id, const std::string& v) {
     // save tbl_, because tbl_->remove() will set it to nullptr
     Table* tbl = tbl_;
     if (re_insert && tbl != nullptr) {
+        tbl->notify_before_update(this, column_id);
         tbl->remove(this, false);
     }
 
@@ -232,7 +234,7 @@ void Row::update(int column_id, const std::string& v) {
 
     if (re_insert && tbl != nullptr) {
         tbl->insert(this);
-        tbl->notify_update(this, column_id);
+        tbl->notify_after_update(this, column_id);
     }
 }
 

@@ -33,7 +33,11 @@ public:
     virtual void insert(Row* row) = 0;
     virtual void remove(Row* row, bool do_free = true) = 0;
 
-    virtual void notify_update(Row* row, int updated_column_id) {
+    virtual void notify_before_update(Row* row, int updated_column_id) {
+        // used to notify IndexedTable to update secondary index
+    }
+
+    virtual void notify_after_update(Row* row, int updated_column_id) {
         // used to notify IndexedTable to update secondary index
     }
 
@@ -566,9 +570,15 @@ public:
         }
         this->SortedTable::remove(row, do_free);
     }
-    
-    virtual void notify_update(Row* row, int updated_column_id) {
-        Log::debug("*** TODO: This shall be done! (re-insert in affected secondary index)");
+
+    virtual void notify_before_update(Row* row, int updated_column_id) {
+        verify(row->get_table() == this);
+        Log::debug("*** TODO: This shall be done: remove the affected secondary indices");
+    }
+
+    virtual void notify_after_update(Row* row, int updated_column_id) {
+        verify(row->get_table() == this);
+        Log::debug("*** TODO: This shall be done: re-insert the affected secondary indices");
     }
 
     using SortedTable::remove;

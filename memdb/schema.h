@@ -138,6 +138,10 @@ public:
         if (idx_name_.find(name) != idx_name_.end()) {
             return -1;
         }
+        for (auto& col_id : idx) {
+            // set up the indexed mark
+            col_info_[col_id].indexed = true;
+        }
         idx_name_[name] = this_idx_id;
         all_idx_.push_back(idx);
         return this_idx_id;

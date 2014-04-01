@@ -612,25 +612,14 @@ TEST(table, snapshot_table_remove_range) {
 }
 
 
-
-TEST(table, create_indexed_table) {
-    IndexedSchema schema;
-    schema.add_key_column("id", Value::I32);
-    schema.add_column("name", Value::STR);
-    schema.add_index("i_id_name", {0, 1});
-    schema.add_index("i_name", {1});
-    schema.add_index("i_name_id", {1, 0});
-
-    IndexedTable* idxtbl = new IndexedTable(&schema);
-    EXPECT_EQ(idxtbl->rtti(), TBL_SORTED);
-
-    delete idxtbl;
-}
-
 TEST(table, indexed_table_create) {
     IndexedSchema* schema = new IndexedSchema;
     schema->add_key_column("id", Value::I32);
     schema->add_column("name", Value::STR);
+
+    schema->add_index("i_id_name", {0, 1});
+    schema->add_index("i_name", {1});
+    schema->add_index("i_name_id", {1, 0});
 
     IndexedTable* idxtbl = new IndexedTable(schema);
     EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
@@ -713,6 +702,10 @@ TEST(table, indexed_table_queries) {
     IndexedSchema* schema = new IndexedSchema;
     schema->add_key_column("id", Value::I32);
     schema->add_column("name", Value::STR);
+
+    schema->add_index("i_id_name", {0, 1});
+    schema->add_index("i_name", {1});
+    schema->add_index("i_name_id", {1, 0});
 
     IndexedTable* idxtbl = new IndexedTable(schema);
 
