@@ -527,4 +527,15 @@ public:
     }
 };
 
+
+class IndexedTable: public SortedTable {
+
+    struct master_index {
+    };
+
+public:
+    IndexedTable(const IndexedSchema* schema): SortedTable(schema) {}
+    ~IndexedTable();
+};
+
 } // namespace mdb

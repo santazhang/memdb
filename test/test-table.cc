@@ -610,3 +610,192 @@ TEST(table, snapshot_table_remove_range) {
     EXPECT_EQ(r1->get_column(0).get_i32(), 1);
     EXPECT_EQ(r1->get_column(1).get_str(), "alice");
 }
+
+
+
+TEST(table, create_indexed_table) {
+    IndexedSchema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    IndexedTable* idxtbl = new IndexedTable(&schema);
+    EXPECT_EQ(idxtbl->rtti(), TBL_SORTED);
+
+    delete idxtbl;
+}
+
+TEST(table, indexed_table_create) {
+    IndexedSchema* schema = new IndexedSchema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_column("name", Value::STR);
+
+    IndexedTable* idxtbl = new IndexedTable(schema);
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    Row* r1 = Row::create(schema, row1);
+    idxtbl->insert(r1);
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    SortedTable::Cursor cursor = idxtbl->query(r1->get_key());
+    std::list<Row*> query_result;
+    while (cursor) {
+        query_result.push_back(cursor.next());
+    }
+    EXPECT_EQ(query_result.size(), 1u);
+    EXPECT_EQ(query_result.front(), r1);
+
+    map<string, Value> row2;
+    row2["id"] = (i32) 2;
+    row2["name"] = "bob";
+    Row* r2 = Row::create(schema, row2);
+    idxtbl->insert(r2);
+
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+    print_table(idxtbl);
+    Log::debug("update row 2, set name = amy");
+
+    r2->update("name", "amy");
+    cursor = idxtbl->query(Value((i32) 2));
+    EXPECT_EQ(cursor.count(), 1);
+    Row* row = cursor.next();
+    EXPECT_EQ(row, r2);
+    EXPECT_EQ(r2->get_column("id").get_i32(), 2);
+    EXPECT_EQ(r2->get_column("name").get_str(), "amy");
+
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+    print_table(idxtbl);
+
+    unordered_map<string, Value> row3;
+    row3["id"] = (i32) 3;
+    row3["name"] = "cathy";
+    Row* r3 = Row::create(schema, row3);
+    idxtbl->insert(r3);
+
+    Log::debug("inserted id=3, name=cathy");
+    print_table(idxtbl);
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    r3->update("id", (i32) 9);
+    r3->update("name", "cathy awesome");
+    Log::debug("updated row 3, set id=9, name=cathy awesome");
+    print_table(idxtbl);
+    cursor = idxtbl->query(Value((i32) 9));
+    EXPECT_EQ(cursor.count(), 1);
+    row = cursor.next();
+    EXPECT_EQ(row, r3);
+    EXPECT_EQ(r3->get_column("id").get_i32(), 9);
+    EXPECT_EQ(r3->get_column("name").get_str(), "cathy awesome");
+
+    Log::debug("all table:");
+    print_table(idxtbl);
+    EXPECT_EQ(idxtbl->all().count(), 3);
+
+    // try removing row 2
+    idxtbl->remove(Value((i32) 2));
+
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+    EXPECT_EQ(idxtbl->all().count(), 2);
+
+    // try removing all rows
+    idxtbl->remove(idxtbl->all());
+    EXPECT_EQ(idxtbl->all().count(), 0);
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    delete idxtbl;
+    delete schema;
+}
+
+TEST(table, indexed_table_queries) {
+    IndexedSchema* schema = new IndexedSchema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_column("name", Value::STR);
+
+    IndexedTable* idxtbl = new IndexedTable(schema);
+
+    vector<Value> row1 = { Value((i32) 1), Value("alice") };
+    Row* r1 = Row::create(schema, row1);
+    idxtbl->insert(r1);
+
+    vector<Value> row1b = { Value((i32) 1), Value("alice_2") };
+    Row* r1b = Row::create(schema, row1b);
+    idxtbl->insert(r1b);
+
+    map<string, Value> row2;
+    row2["id"] = (i32) 2;
+    row2["name"] = "bob";
+    Row* r2 = Row::create(schema, row2);
+    idxtbl->insert(r2);
+    map<string, Value> row2b;
+    row2b["id"] = (i32) 2;
+    row2b["name"] = "bob_2";
+    Row* r2b = Row::create(schema, row2b);
+    idxtbl->insert(r2b);
+
+    unordered_map<string, Value> row3;
+    row3["id"] = (i32) 3;
+    row3["name"] = "cathy";
+    Row* r3 = Row::create(schema, row3);
+    idxtbl->insert(r3);
+    unordered_map<string, Value> row3b;
+    row3b["id"] = (i32) 3;
+    row3b["name"] = "cathy_2";
+    Row* r3b = Row::create(schema, row3b);
+    idxtbl->insert(r3b);
+
+    Log::debug("full table:");
+    print_table(idxtbl);
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    Log::debug("full table (reverse):");
+    print_result(idxtbl->all(symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all(symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    Log::debug("key < 2:");
+    print_result(idxtbl->query_lt(Value((i32) 2)));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_lt(Value((i32) 2))));
+
+    Log::debug("key < 2 (reverse order):");
+    print_result(idxtbl->query_lt(Value((i32) 2), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_lt(Value((i32) 2), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    Log::debug("key < 3:");
+    print_result(idxtbl->query_lt(Value((i32) 3)));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_lt(Value((i32) 3))));
+
+    Log::debug("key < 3 (reverse order):");
+    print_result(idxtbl->query_lt(Value((i32) 3), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_lt(Value((i32) 3), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    Log::debug("key > 2:");
+    print_result(idxtbl->query_gt(Value((i32) 2)));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_gt(Value((i32) 2))));
+
+    Log::debug("key > 2 (reverse order):");
+    print_result(idxtbl->query_gt(Value((i32) 2), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_gt(Value((i32) 2), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    Log::debug("key > 1:");
+    print_result(idxtbl->query_gt(Value((i32) 1)));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_gt(Value((i32) 1))));
+
+    Log::debug("key > 1 (reverse order):");
+    print_result(idxtbl->query_gt(Value((i32) 1), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_lt(Value((i32) 1), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    Log::debug("1 < key < 3:");
+    print_result(idxtbl->query_in(Value((i32) 1), Value((i32) 3)));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_in(Value((i32) 1), Value((i32) 3))));
+
+    Log::debug("1 < key < 3 (reverse order):");
+    print_result(idxtbl->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC));
+    EXPECT_TRUE(rows_are_sorted(idxtbl->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
+
+    Log::debug("remove 1 < key < 3:");
+    idxtbl->remove(idxtbl->query_in(Value((i32) 1), Value((i32) 3)));
+    print_table(idxtbl);
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    delete idxtbl;
+    delete schema;
+}

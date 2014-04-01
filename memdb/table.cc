@@ -175,4 +175,10 @@ UnsortedTable::iterator UnsortedTable::remove(iterator it, bool do_free /* =? */
     }
 }
 
+
+IndexedTable::~IndexedTable() {
+    // TODO
+}
+
+
 } // namespace mdb

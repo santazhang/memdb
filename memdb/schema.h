@@ -87,4 +87,16 @@ private:
     int fixed_part_size_;
 };
 
+class IndexedSchema: public Schema {
+    int idx_col_;
+public:
+    IndexedSchema() {
+        // TODO
+        //idx_col_ = this->add_column(".index", Value::I64);
+    }
+    int index_column_id() const {
+        return idx_col_;
+    }
+};
+
 } // namespace mdb
