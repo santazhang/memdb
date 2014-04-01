@@ -53,7 +53,7 @@ def _enable_debug(conf):
 def _extra_warnings(conf):
     warning_flags = "-Wextra -pedantic -Wformat=2 -Wno-unused-parameter -Wshadow -Wwrite-strings -Wredundant-decls -Wmissing-include-dirs -Wno-format-nonliteral"
     if sys.platform == "darwin":
-        warning_flags += " -Wno-gnu -Wstrict-prototypes -Wold-style-definition -Wnested-externs"
+        warning_flags += " -Wno-gnu -Wstrict-prototypes -Wold-style-definition -Wnested-externs -Wno-nested-anon-types"
     conf.env.append_value("CXXFLAGS", warning_flags.split())
 
 def _run_cmd(cmd):
