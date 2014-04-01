@@ -10,6 +10,9 @@ int Schema::add_column(const char* name, Value::kind type, bool key /* =? */) {
     if (col_name_to_id_.find(name) != col_name_to_id_.end()) {
         return -1;
     }
+    if (frozen_) {
+        return -1;
+    }
 
     column_info col_info;
     col_info.name = name;

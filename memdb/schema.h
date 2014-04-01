@@ -34,7 +34,8 @@ public:
         };
     };
 
-    Schema(): var_size_cols_(0), fixed_part_size_(0) {}
+    Schema(): var_size_cols_(0), fixed_part_size_(0), frozen_(false) {}
+    virtual ~Schema() {}
 
     int add_column(const char* name, Value::kind type, bool key = false);
     int add_key_column(const char* name, Value::kind type) {
@@ -69,11 +70,17 @@ public:
     iterator begin() const {
         return std::begin(col_info_);
     }
-    iterator end() const {
+    virtual iterator end() const {
         return std::end(col_info_);
     }
-    size_t columns_count() const {
+    virtual size_t columns_count() const {
         return col_info_.size();
+    }
+    virtual void freeze() {
+        frozen_ = true;
+    }
+    virtual int fixed_part_size() const {
+        return fixed_part_size_;
     }
 
 private:
@@ -85,17 +92,31 @@ private:
     // number of variable size cols (lookup table on row data)
     int var_size_cols_;
     int fixed_part_size_;
+
+    bool frozen_;
 };
 
 class IndexedSchema: public Schema {
     int idx_col_;
 public:
-    IndexedSchema() {
-        // TODO
-        //idx_col_ = this->add_column(".index", Value::I64);
-    }
+    IndexedSchema(): idx_col_(-1) {}
     int index_column_id() const {
         return idx_col_;
+    }
+
+    // we need to override the following functions to "fake" as if the last pointer does not exist in columns
+    virtual iterator end() const {
+        return Schema::end() - 1;
+    }
+    virtual size_t columns_count() const {
+        return Schema::columns_count() - 1;
+    }
+    virtual void freeze() {
+        idx_col_ = this->add_column(".index", Value::I64);
+        Schema::freeze();
+    }
+    virtual int fixed_part_size() const {
+        return Schema::fixed_part_size() - sizeof(i64);
     }
 };
 

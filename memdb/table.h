@@ -20,7 +20,10 @@ protected:
     const Schema* schema_;
 
 public:
-    Table(const Schema* schema): schema_(schema) {}
+    Table(const Schema* schema): schema_(schema) {
+        // prevent furthur changes
+        const_cast<Schema*>(schema_)->freeze();
+    }
     virtual ~Table() {}
 
     const Schema* schema() const {

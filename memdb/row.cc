@@ -302,7 +302,7 @@ Row* Row::create(Row* raw_row, const Schema* schema, const std::vector<const Val
             break;
         }
     }
-    verify(fixed_pos == schema->fixed_part_size_);
+    verify(fixed_pos == schema->fixed_part_size());
 
     if (schema->var_size_cols_ > 0) {
         // 2nd pass, write var part
