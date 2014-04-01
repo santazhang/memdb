@@ -187,9 +187,8 @@ IndexedTable::~IndexedTable() {
         Value ptr_value = it.second->get_column(index_column_id());
         master_index* idx = (master_index *) ptr_value.get_i64();
         destroy_secondary_indices(idx);
-
-        it.second->release();
     }
+    // NOTE: ~SortedTable() will be called, releasing Rows in table
 }
 
 void IndexedTable::insert(Row* row) {
