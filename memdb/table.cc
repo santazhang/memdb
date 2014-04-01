@@ -284,6 +284,7 @@ void IndexedTable::insert(Row* row) {
         master_idx->back() = row;
 
         for (size_t idx_id = 0; idx_id < master_idx->size() - 1; idx_id++) {
+            // pointer slots in master_idx will also be updated
             Row* idx_row = make_index_row(row, idx_id, master_idx);
 
             SortedTable* idx_tbl = indices_[idx_id];
@@ -292,6 +293,13 @@ void IndexedTable::insert(Row* row) {
         row->update(index_column_id(), (i64) master_idx);
     }
     this->SortedTable::insert(row);
+}
+
+void IndexedTable::remove(Index::Cursor idx_cursor) {
+    while (idx_cursor) {
+        Row* row = const_cast<Row*>(idx_cursor.next());
+        remove(row);
+    }
 }
 
 IndexedTable::iterator IndexedTable::remove(iterator it, bool do_free /* =? */) {

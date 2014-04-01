@@ -787,15 +787,72 @@ TEST(table, indexed_table_queries) {
     print_result(idxtbl->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC));
     EXPECT_TRUE(rows_are_sorted(idxtbl->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
-    // TODO test index queries
-//    Log::debug("======== begin index queries ========");
-//    Index idx = idxtbl->get_index("i_name");
-//    print_result(idx.all());
+    Log::debug("remove 1 < key < 3:");
+    idxtbl->remove(idxtbl->query_in(Value((i32) 1), Value((i32) 3)));
+    print_table(idxtbl);
+    EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    delete idxtbl;
+    delete schema;
+}
+
+TEST(table, indexed_table_queries_on_index) {
+    IndexedSchema* schema = new IndexedSchema;
+    schema->add_key_column("id", Value::I32);
+    schema->add_column("name", Value::STR);
+
+    schema->add_index("i_id_name", {0, 1});
+    schema->add_index("i_name", {1});
+    schema->add_index("i_name_id", {1, 0});
+
+    IndexedTable* idxtbl = new IndexedTable(schema);
+
+    vector<Value> row1 = { Value((i32) 1), Value("z_alice") };
+    Row* r1 = Row::create(schema, row1);
+    idxtbl->insert(r1);
+
+    vector<Value> row1b = { Value((i32) 1), Value("y_alice_2") };
+    Row* r1b = Row::create(schema, row1b);
+    idxtbl->insert(r1b);
+
+    map<string, Value> row2;
+    row2["id"] = (i32) 2;
+    row2["name"] = "k_bob";
+    Row* r2 = Row::create(schema, row2);
+    idxtbl->insert(r2);
+    map<string, Value> row2b;
+    row2b["id"] = (i32) 2;
+    row2b["name"] = "n_bob_2";
+    Row* r2b = Row::create(schema, row2b);
+    idxtbl->insert(r2b);
+
+    unordered_map<string, Value> row3;
+    row3["id"] = (i32) 3;
+    row3["name"] = "d_cathy";
+    Row* r3 = Row::create(schema, row3);
+    idxtbl->insert(r3);
+    unordered_map<string, Value> row3b;
+    row3b["id"] = (i32) 3;
+    row3b["name"] = "p_cathy_2";
+    Row* r3b = Row::create(schema, row3b);
+    idxtbl->insert(r3b);
+
+    Log::debug("======== begin index queries ========");
+    Index idx = idxtbl->get_index("i_name");
+    print_result(idx.all());
 
     Log::debug("remove 1 < key < 3:");
     idxtbl->remove(idxtbl->query_in(Value((i32) 1), Value((i32) 3)));
     print_table(idxtbl);
     EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
+
+    Log::debug("----");
+
+    print_result(idx.all());
+
+    Log::debug("remove based on index: name < x");
+    idxtbl->remove(idx.query_lt(Value("x")));
+    print_table(idxtbl);
 
     delete idxtbl;
     delete schema;

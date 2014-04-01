@@ -12,6 +12,7 @@
 
 #include "snapshot.h"
 
+
 namespace mdb {
 
 // Tables are NoCopy, because they might maintain a pointer to schema, which should not be shared
@@ -537,9 +538,10 @@ public:
     }
 };
 
-
 // forward declaration
 class IndexedTable;
+
+typedef std::vector<Row*> master_index;
 
 class Index {
     const IndexedTable* idx_tbl_;
@@ -563,16 +565,22 @@ public:
         int count() {
             return base_cur_.count();
         }
-        Row* next() {
+        const Row* next() {
             Row* index_row = base_cur_.next();
             column_id_t last_column_id = index_row->schema()->columns_count() - 1;
+            verify(last_column_id >= 0);
             Value pointer_value = index_row->get_column(last_column_id);
-            Row* base_row = (Row *) pointer_value.get_i64();
+            master_index* master_idx = (master_index *) pointer_value.get_i64();
+            verify(master_idx != nullptr);
+            const Row* base_row = master_idx->back();
+            verify(base_row != nullptr);
             return base_row;
         }
     };
 
-    Index(const IndexedTable* idx_tbl, int idx_id): idx_tbl_(idx_tbl), idx_id_(idx_id) {}
+    Index(const IndexedTable* idx_tbl, int idx_id): idx_tbl_(idx_tbl), idx_id_(idx_id) {
+        verify(idx_id >= 0);
+    }
 
     const IndexedTable* get_table() {
         return idx_tbl_;
@@ -620,8 +628,6 @@ public:
 class IndexedTable: public SortedTable {
     friend class Index;
 
-    typedef std::vector<Row*> master_index;
-
     // all the secondary indices and their schemas
     std::vector<SortedTable*> indices_;
     std::vector<Schema*> index_schemas_;
@@ -641,6 +647,8 @@ public:
     ~IndexedTable();
 
     void insert(Row* row);
+
+    void remove(Index::Cursor idx_cursor);
 
     // enable searching SortedTable for overloaded `remove` functions
     using SortedTable::remove;
