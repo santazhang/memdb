@@ -296,8 +296,12 @@ void IndexedTable::insert(Row* row) {
 }
 
 void IndexedTable::remove(Index::Cursor idx_cursor) {
+    vector<Row*> rows;
     while (idx_cursor) {
         Row* row = const_cast<Row*>(idx_cursor.next());
+        rows.push_back(row);
+    }
+    for (auto& row : rows) {
         remove(row);
     }
 }
