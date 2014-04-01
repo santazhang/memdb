@@ -351,7 +351,8 @@ struct row_column_pair {
 class TxnOCC: public Txn2PL {
     // when ever a read/write is performed, record its version
     // check at commit time if all version values are not changed
-    std::unordered_map<row_column_pair, version_t, row_column_pair::hash> ver_check_;
+    std::unordered_map<row_column_pair, version_t, row_column_pair::hash> ver_check_read_;
+    std::unordered_map<row_column_pair, version_t, row_column_pair::hash> ver_check_write_;
 
     // incr refcount on a Row whenever it gets accessed
     std::set<Row*> accessed_rows_;
@@ -368,12 +369,15 @@ class TxnOCC: public Txn2PL {
 
     void incr_row_refcount(Row* r);
     bool version_check();
+    bool version_check(const std::unordered_map<row_column_pair, version_t, row_column_pair::hash>& ver_info);
     void release_resource();
 
 public:
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid): Txn2PL(mgr, txnid), verified_(false), policy_(symbol_t::OCC_EAGER) {}
 
     TxnOCC(const TxnMgr* mgr, txn_id_t txnid, const std::vector<std::string>& table_names);
+
+    ~TxnOCC();
 
     virtual symbol_t rtti() const {
         return symbol_t::TXN_OCC;

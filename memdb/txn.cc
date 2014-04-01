@@ -732,6 +732,10 @@ TxnOCC::TxnOCC(const TxnMgr* mgr, txn_id_t txnid, const std::vector<std::string>
     }
 }
 
+TxnOCC::~TxnOCC() {
+    release_resource();
+}
+
 void TxnOCC::incr_row_refcount(Row* r) {
     if (accessed_rows_.find(r) == accessed_rows_.end()) {
         r->ref_copy();
@@ -743,7 +747,11 @@ bool TxnOCC::version_check() {
     if (is_readonly()) {
         return true;
     }
-    for (auto& it : ver_check_) {
+    return version_check(ver_check_read_) && version_check(ver_check_write_);
+}
+
+bool TxnOCC::version_check(const std::unordered_map<row_column_pair, version_t, row_column_pair::hash>& ver_info) {
+    for (auto& it : ver_info) {
         Row* row = it.first.row;
         column_id_t col_id = it.first.col_id;
         version_t ver = it.second;
@@ -769,7 +777,8 @@ void TxnOCC::release_resource() {
     }
     locks_.clear();
 
-    ver_check_.clear();
+    ver_check_read_.clear();
+    ver_check_write_.clear();
 
     // release ref copy
     for (auto& it: accessed_rows_) {
@@ -814,7 +823,15 @@ bool TxnOCC::commit_prepare() {
     }
 
     // now lock the commit
-    for (auto& it : ver_check_) {
+    for (auto& it : ver_check_read_) {
+        Row* row = it.first.row;
+        VersionedRow* v_row = (VersionedRow *) row;
+        if (!v_row->rlock_row_by(this->id())) {
+            return false;
+        }
+        insert_into_map(locks_, row, -1);
+    }
+    for (auto& it : ver_check_write_) {
         Row* row = it.first.row;
         VersionedRow* v_row = (VersionedRow *) row;
         if (!v_row->wlock_row_by(this->id())) {
@@ -928,7 +945,7 @@ bool TxnOCC::read_column(Row* row, column_id_t col_id, Value* value) {
     // reading from actual table data, track version
     if (row->rtti() == symbol_t::ROW_VERSIONED) {
         VersionedRow* v_row = (VersionedRow *) row;
-        insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
+        insert_into_map(ver_check_read_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
         // increase row reference count because later we are going to check its version
         incr_row_refcount(row);
 
@@ -965,7 +982,7 @@ bool TxnOCC::write_column(Row* row, column_id_t col_id, const Value& value) {
         if (policy_ == symbol_t::OCC_EAGER) {
             v_row->incr_column_ver(col_id);
         }
-        insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
+        insert_into_map(ver_check_write_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
         // increase row reference count because later we are going to check its version
         incr_row_refcount(row);
 
@@ -1019,7 +1036,7 @@ bool TxnOCC::remove_row(Table* tbl, Row* row) {
                 if (policy_ == symbol_t::OCC_EAGER) {
                     v_row->incr_column_ver(col_id);
                 }
-                insert_into_map(ver_check_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
+                insert_into_map(ver_check_write_, row_column_pair(v_row, col_id), v_row->get_column_ver(col_id));
                 // increase row reference count because later we are going to check its version
                 incr_row_refcount(row);
             }

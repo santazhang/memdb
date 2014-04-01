@@ -819,3 +819,61 @@ TEST(txn, readonly_txn) {
 
     delete student_tbl;
 }
+
+TEST(txn, occ_commit_prepare_and_confirm) {
+    TxnMgrOCC txnmgr;
+    Schema schema;
+    schema.add_key_column("id", Value::I32);
+    schema.add_column("name", Value::STR);
+
+    Table* student_tbl = new UnsortedTable(&schema);
+    txnmgr.reg_table("student", student_tbl);
+
+    Txn* txn1 = txnmgr.start(1);
+    {
+        vector<Value> row = { Value((i32) 1), Value("alice") };
+        VersionedRow* r = VersionedRow::create(&schema, row);
+        EXPECT_TRUE(txn1->insert_row(student_tbl, r));
+    }
+    EXPECT_TRUE(txn1->commit_or_abort());
+    delete txn1;
+
+    // 2 read only tx, both should commit
+    {
+        TxnOCC* txn2 = (TxnOCC *) txnmgr.start(2);
+        TxnOCC* txn3 = (TxnOCC *) txnmgr.start(3);
+
+        Value v;
+        EXPECT_TRUE(txn2->read_column(txn2->all(student_tbl).next(), 1, &v));
+        EXPECT_EQ(v, Value("alice"));
+
+        EXPECT_TRUE(txn3->read_column(txn3->all(student_tbl).next(), 1, &v));
+        EXPECT_EQ(v, Value("alice"));
+
+        EXPECT_TRUE(txn2->commit_prepare_or_abort());
+        EXPECT_TRUE(txn3->commit_prepare_or_abort());
+
+        delete txn2;
+        delete txn3;
+    }
+
+    // 1 read only tx, 1 write tx, one should abort
+    {
+        TxnOCC* txn2 = (TxnOCC *) txnmgr.start(2);
+        TxnOCC* txn3 = (TxnOCC *) txnmgr.start(3);
+
+        Value v;
+        EXPECT_TRUE(txn2->read_column(txn2->all(student_tbl).next(), 1, &v));
+        EXPECT_EQ(v, Value("alice"));
+
+        EXPECT_TRUE(txn3->write_column(txn3->all(student_tbl).next(), 1, v));
+
+        EXPECT_TRUE(txn3->commit_prepare_or_abort());
+        EXPECT_FALSE(txn2->commit_prepare_or_abort());
+
+        delete txn2;
+        delete txn3;
+    }
+
+    delete student_tbl;
+}
