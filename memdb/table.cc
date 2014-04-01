@@ -245,11 +245,11 @@ Row* IndexedTable::make_index_row(Row* base, int idx_id, master_index* master_id
 }
 
 
-IndexedTable::IndexedTable(const IndexedSchema* schema): SortedTable(schema) {
-    for (auto idx = schema->index_begin(); idx != schema->index_end(); ++idx) {
+IndexedTable::IndexedTable(const IndexedSchema* _schema): SortedTable(_schema) {
+    for (auto idx = _schema->index_begin(); idx != _schema->index_end(); ++idx) {
         Schema* idx_schema = new Schema;
         for (auto& col_id : *idx) {
-            auto col_info = schema->get_column_info(col_id);
+            auto col_info = _schema->get_column_info(col_id);
             idx_schema->add_key_column(col_info->name.c_str(), col_info->type);
         }
         verify(idx_schema->add_column(".hidden", Value::I64) >= 0);

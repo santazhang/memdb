@@ -433,8 +433,8 @@ bool Txn2PL::remove_row(Table* tbl, Row* row) {
 class KeyOnlySearchRow: public Row {
     const MultiBlob* mb_;
 public:
-    KeyOnlySearchRow(const Schema* schema, const MultiBlob* mb): mb_(mb) {
-        schema_ = schema;
+    KeyOnlySearchRow(const Schema* _schema, const MultiBlob* mb): mb_(mb) {
+        schema_ = _schema;
     }
     virtual MultiBlob get_key() const {
         return *mb_;

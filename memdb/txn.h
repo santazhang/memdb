@@ -393,9 +393,9 @@ public:
     }
 
     // call this before ANY operation
-    void set_policy(symbol_t policy) {
-        verify(policy == symbol_t::OCC_EAGER || policy == symbol_t::OCC_LAZY);
-        policy_ = policy;
+    void set_policy(symbol_t _policy) {
+        verify(_policy == symbol_t::OCC_EAGER || _policy == symbol_t::OCC_LAZY);
+        policy_ = _policy;
     }
     symbol_t policy() const {
         return policy_;

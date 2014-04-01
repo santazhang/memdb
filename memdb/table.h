@@ -21,7 +21,7 @@ protected:
     const Schema* schema_;
 
 public:
-    Table(const Schema* schema): schema_(schema) {
+    Table(const Schema* _schema): schema_(_schema) {
         // prevent furthur changes
         const_cast<Schema*>(schema_)->freeze();
     }
@@ -100,15 +100,15 @@ public:
         int count_;
         bool reverse_;
     public:
-        Cursor(const iterator& begin, const iterator& end): count_(-1), reverse_(false) {
-            begin_ = begin;
-            end_ = end;
-            next_ = begin;
+        Cursor(const iterator& _begin, const iterator& _end): count_(-1), reverse_(false) {
+            begin_ = _begin;
+            end_ = _end;
+            next_ = _begin;
         }
-        Cursor(const reverse_iterator& begin, const reverse_iterator& end): count_(-1), reverse_(true) {
-            r_begin_ = begin;
-            r_end_ = end;
-            r_next_ = begin;
+        Cursor(const reverse_iterator& _begin, const reverse_iterator& _end): count_(-1), reverse_(true) {
+            r_begin_ = _begin;
+            r_end_ = _end;
+            r_next_ = _begin;
         }
 
         const iterator& begin() const {
@@ -163,7 +163,7 @@ public:
         }
     };
 
-    SortedTable(const Schema* schema): Table(schema) {}
+    SortedTable(const Schema* _schema): Table(_schema) {}
 
     ~SortedTable();
 
@@ -297,7 +297,7 @@ public:
         }
     };
 
-    UnsortedTable(const Schema* schema): Table(schema) {}
+    UnsortedTable(const Schema* _schema): Table(_schema) {}
 
     ~UnsortedTable();
 
