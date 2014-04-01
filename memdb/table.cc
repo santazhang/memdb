@@ -8,7 +8,7 @@ int SortedMultiKey::compare(const SortedMultiKey& o) const {
     const std::vector<int>& key_cols = schema_->key_columns_id();
     for (size_t i = 0; i < key_cols.size(); i++) {
         const Schema::column_info* info = schema_->get_column_info(key_cols[i]);
-        verify(info->key);
+        verify(info->indexed);
         switch (info->type) {
         case Value::I32:
             {

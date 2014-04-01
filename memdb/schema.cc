@@ -14,10 +14,10 @@ int Schema::do_add_column(const char* name, Value::kind type, bool key) {
     column_info col_info;
     col_info.name = name;
     col_info.id = this_column_id;
-    col_info.key = key;
+    col_info.indexed = key;
     col_info.type = type;
 
-    if (col_info.key) {
+    if (col_info.indexed) {
         key_cols_id_.push_back(col_info.id);
     }
 

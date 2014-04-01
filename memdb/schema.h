@@ -17,11 +17,11 @@ class Schema {
 public:
 
     struct column_info {
-        column_info(): id(-1), key(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
+        column_info(): id(-1), indexed(false), type(Value::UNKNOWN), fixed_size_offst(-1) {}
 
         column_id_t id;
         std::string name;
-        bool key;
+        bool indexed;   // primary index or secondary index
         Value::kind type;
 
         union {
@@ -40,9 +40,10 @@ public:
     int add_column(const char* name, Value::kind type, bool key = false) {
         verify(!frozen_ && hidden_fixed_ == 0 && hidden_var_ == 0);
         verify(name[0] != '.'); // reserved name!
-        return do_add_column(name, type, key);
+        return do_add_column(name, type, key);  // key: primary index only
     }
     int add_key_column(const char* name, Value::kind type) {
+        // key: primary index only
         return add_column(name, type, true);
     }
 
@@ -55,6 +56,7 @@ public:
         return -1;
     }
     const std::vector<column_id_t>& key_columns_id() const {
+        // key: primary index only
         return key_cols_id_;
     }
 
@@ -88,7 +90,7 @@ protected:
 
     int add_hidden_column(const char* name, Value::kind type) {
         verify(!frozen_);
-        const bool key = false;
+        const bool key = false;     // key: primary index only
         int ret = do_add_column(name, type, key);
         if (type == Value::STR) {
             hidden_var_++;
@@ -100,7 +102,7 @@ protected:
 
     std::unordered_map<std::string, column_id_t> col_name_to_id_;
     std::vector<column_info> col_info_;
-    std::vector<column_id_t> key_cols_id_;
+    std::vector<column_id_t> key_cols_id_;  // key: primary index only
 
     // number of variable size cols (lookup table on row data)
     int var_size_cols_;

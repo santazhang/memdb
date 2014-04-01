@@ -173,7 +173,7 @@ void Row::update_fixed(const Schema::column_info* col, void* ptr, int len) {
         return;
     }
 
-    if (col->key) {
+    if (col->indexed) {
         re_insert = true;
     }
 
@@ -211,7 +211,7 @@ void Row::update(int column_id, const std::string& v) {
         }
     }
 
-    if (col->key) {
+    if (col->indexed) {
         re_insert = true;
     }
 

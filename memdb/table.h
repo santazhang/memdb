@@ -533,8 +533,9 @@ public:
 
 class IndexedTable: public SortedTable {
 
-    struct master_index {
-    };
+    std::map<std::vector<column_id_t>, int> all_idx_;
+
+    typedef std::vector<Row*> master_index;
 
     int index_column_id() const {
         return ((IndexedSchema *) schema_)->index_column_id();
