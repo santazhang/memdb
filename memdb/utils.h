@@ -45,7 +45,7 @@ typedef enum {
     ORD_DESC,
 
     OCC_EAGER,
-    OCC_LAZY,
+    OCC_LAZY
 } symbol_t;
 
 uint32_t stringhash32(const void* data, int len);
