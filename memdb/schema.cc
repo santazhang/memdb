@@ -56,8 +56,33 @@ void IndexedSchema::index_sanity_check(const std::vector<column_id_t>& idx) {
     set<column_id_t> s(idx.begin(), idx.end());
     verify(s.size() == idx.size());
     for (auto& column_id : idx) {
-        verify(size_t(column_id) < columns_count());
+        verify(column_id >= 0 && column_id < (column_id_t) columns_count());
     }
+}
+
+int IndexedSchema::add_index(const char* name, const std::vector<column_id_t>& idx) {
+    index_sanity_check(idx);
+    int this_idx_id = all_idx_.size();
+    if (idx_name_.find(name) != idx_name_.end()) {
+        return -1;
+    }
+    for (auto& col_id : idx) {
+        // set up the indexed mark
+        col_info_[col_id].indexed = true;
+    }
+    idx_name_[name] = this_idx_id;
+    all_idx_.push_back(idx);
+    return this_idx_id;
+}
+
+int IndexedSchema::add_index_by_column_names(const char* name, const std::vector<std::string>& named_idx) {
+    std::vector<column_id_t> idx;
+    for (auto& col_name : named_idx) {
+        column_id_t col_id = this->get_column_id(col_name);
+        verify(col_id >= 0);
+        idx.push_back(col_id);
+    }
+    return this->add_index(name, idx);
 }
 
 } // namespace mdb

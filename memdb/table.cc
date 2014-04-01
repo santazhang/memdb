@@ -92,7 +92,7 @@ void SortedTable::remove(const SortedMultiKey& smk) {
     auto query_range = rows_.equal_range(smk);
     iterator it = query_range.first;
     while (it != query_range.second) {
-        it = remove_iter(it);
+        it = remove(it);
     }
 }
 
@@ -103,7 +103,7 @@ void SortedTable::remove(Row* row, bool do_free /* =? */) {
     while (it != query_range.second) {
         if (it->second == row) {
             it->second->set_table(nullptr);
-            it = remove_iter(it, do_free);
+            it = remove(it, do_free);
             break;
         } else {
             ++it;
@@ -114,11 +114,11 @@ void SortedTable::remove(Row* row, bool do_free /* =? */) {
 void SortedTable::remove(Cursor cur) {
     iterator it = cur.begin();
     while (it != cur.end()) {
-        it = this->remove_iter(it);
+        it = this->remove(it);
     }
 }
 
-SortedTable::iterator SortedTable::remove_iter(iterator it, bool do_free /* =? */) {
+SortedTable::iterator SortedTable::remove(iterator it, bool do_free /* =? */) {
     if (it != rows_.end()) {
         if (do_free) {
             it->second->release();
@@ -176,8 +176,55 @@ UnsortedTable::iterator UnsortedTable::remove(iterator it, bool do_free /* =? */
 }
 
 
-IndexedTable::~IndexedTable() {
+void IndexedTable::destroy_secondary_indices(master_index* master_idx) {
     // TODO
+    delete master_idx;
+}
+
+IndexedTable::~IndexedTable() {
+    for (auto& it: rows_) {
+        // get rid of the index
+        Value ptr_value = it.second->get_column(index_column_id());
+        master_index* idx = (master_index *) ptr_value.get_i64();
+        destroy_secondary_indices(idx);
+
+        it.second->release();
+    }
+}
+
+void IndexedTable::insert(Row* row) {
+    Value ptr_value = row->get_column(index_column_id());
+    if (ptr_value.get_i64() == 0) {
+        // TODO
+        master_index* idx = new master_index;
+        row->update(index_column_id(), (i64) idx);
+    }
+    this->SortedTable::insert(row);
+}
+
+IndexedTable::iterator IndexedTable::remove(iterator it, bool do_free /* =? */) {
+    if (it != rows_.end()) {
+        if (do_free) {
+            Row* row = it->second;
+            Value ptr_value = row->get_column(index_column_id());
+            master_index* idx = (master_index *) ptr_value.get_i64();
+            destroy_secondary_indices(idx);
+            row->release();
+        }
+        return rows_.erase(it);
+    } else {
+        return rows_.end();
+    }
+}
+
+void IndexedTable::notify_before_update(Row* row, int updated_column_id) {
+    verify(row->get_table() == this);
+    Log::debug("*** TODO: This shall be done: remove the affected secondary indices");
+}
+
+void IndexedTable::notify_after_update(Row* row, int updated_column_id) {
+    verify(row->get_table() == this);
+    Log::debug("*** TODO: This shall be done: re-insert the affected secondary indices");
 }
 
 

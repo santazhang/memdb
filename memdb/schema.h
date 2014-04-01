@@ -129,23 +129,14 @@ class IndexedSchema: public Schema {
 
 public:
     IndexedSchema(): idx_col_(-1) {}
+
     int index_column_id() const {
         return idx_col_;
     }
-    int add_index(const char* name, const std::vector<column_id_t>& idx) {
-        index_sanity_check(idx);
-        int this_idx_id = all_idx_.size();
-        if (idx_name_.find(name) != idx_name_.end()) {
-            return -1;
-        }
-        for (auto& col_id : idx) {
-            // set up the indexed mark
-            col_info_[col_id].indexed = true;
-        }
-        idx_name_[name] = this_idx_id;
-        all_idx_.push_back(idx);
-        return this_idx_id;
-    }
+
+    int add_index(const char* name, const std::vector<column_id_t>& idx);
+    int add_index_by_column_names(const char* name, const std::vector<std::string>& named_idx);
+
     const std::vector<column_id_t>& get_index(const char* name) {
         auto it = idx_name_.find(name);
         verify(it != idx_name_.end());

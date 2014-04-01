@@ -82,8 +82,14 @@ public:
 };
 
 class SortedTable: public Table {
+protected:
     typedef std::multimap<SortedMultiKey, Row*>::const_iterator iterator;
     typedef std::multimap<SortedMultiKey, Row*>::const_reverse_iterator reverse_iterator;
+
+    virtual iterator remove(iterator it, bool do_free = true);
+
+    // indexed by key values
+    std::multimap<SortedMultiKey, Row*> rows_;
 
 public:
 
@@ -253,13 +259,6 @@ public:
     void remove(const SortedMultiKey& smk);
     void remove(Row* row, bool do_free = true);
     void remove(Cursor cur);
-
-private:
-
-    iterator remove_iter(iterator it, bool do_free = true);
-
-    // indexed by key values
-    std::multimap<SortedMultiKey, Row*> rows_;
 };
 
 
@@ -362,7 +361,6 @@ public:
 
 
 class SnapshotTable: public Table {
-
     // indexed by key values
     typedef snapshot_sortedmap<SortedMultiKey, RefCountedRow> table_type;
     table_type rows_;
@@ -547,41 +545,21 @@ class IndexedTable: public SortedTable {
         return ((IndexedSchema *) schema_)->index_column_id();
     }
 
+    void destroy_secondary_indices(master_index* master_idx);
+
+    virtual iterator remove(iterator it, bool do_free = true);
+
 public:
     IndexedTable(const IndexedSchema* schema): SortedTable(schema) {}
     ~IndexedTable();
 
-    void insert(Row* row) {
-        Value ptr_value = row->get_column(index_column_id());
-        if (ptr_value.get_i64() == 0) {
-            // TODO
-            master_index* idx = new master_index;
-            row->update(index_column_id(), (i64) idx);
-        }
-        this->SortedTable::insert(row);
-    }
+    void insert(Row* row);
 
-    void remove(Row* row, bool do_free = true) {
-        if (do_free) {
-            Value ptr_value = row->get_column(index_column_id());
-            master_index* idx = (master_index *) ptr_value.get_i64();
-            // TODO
-            delete idx;
-        }
-        this->SortedTable::remove(row, do_free);
-    }
-
-    virtual void notify_before_update(Row* row, int updated_column_id) {
-        verify(row->get_table() == this);
-        Log::debug("*** TODO: This shall be done: remove the affected secondary indices");
-    }
-
-    virtual void notify_after_update(Row* row, int updated_column_id) {
-        verify(row->get_table() == this);
-        Log::debug("*** TODO: This shall be done: re-insert the affected secondary indices");
-    }
-
+    // enable searching SortedTable for overloaded `remove` functions
     using SortedTable::remove;
+
+    virtual void notify_before_update(Row* row, int updated_column_id);
+    virtual void notify_after_update(Row* row, int updated_column_id);
 };
 
 } // namespace mdb

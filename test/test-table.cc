@@ -619,7 +619,7 @@ TEST(table, indexed_table_create) {
 
     schema->add_index("i_id_name", {0, 1});
     schema->add_index("i_name", {1});
-    schema->add_index("i_name_id", {1, 0});
+    schema->add_index_by_column_names("i_name_id", {"name", "id"});
 
     IndexedTable* idxtbl = new IndexedTable(schema);
     EXPECT_TRUE(rows_are_sorted(idxtbl->all()));
