@@ -9,7 +9,6 @@ def configure(conf):
     _enable_cxx11(conf)
     _enable_debug(conf)
     _extra_warnings(conf)
-    conf.env.append_value("CXXFLAGS", "-Wno-nested-anon-types")
     conf.env.LIB_PTHREAD = 'pthread'
     conf.env.INCLUDES_BASE = os.path.join(os.getcwd(), "../base-utils")
     conf.env.LIBPATH_BASE = os.path.join(os.getcwd(), "../base-utils/build")
