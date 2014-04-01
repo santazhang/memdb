@@ -532,9 +532,6 @@ public:
 
 
 class IndexedTable: public SortedTable {
-
-    std::map<std::vector<column_id_t>, int> all_idx_;
-
     typedef std::vector<Row*> master_index;
 
     int index_column_id() const {
@@ -547,7 +544,7 @@ public:
 
     void insert(Row* row) {
         master_index* idx = nullptr;    // TODO
-        row->update(index_column_id(), (i64) idx);     index_column_id();
+        row->update(index_column_id(), (i64) idx);
         this->SortedTable::insert(row);
     }
 

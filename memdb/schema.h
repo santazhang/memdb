@@ -121,6 +121,9 @@ private:
 
 class IndexedSchema: public Schema {
     int idx_col_;
+
+    std::map<std::vector<column_id_t>, int> all_idx_;
+
 public:
     IndexedSchema(): idx_col_(-1) {}
     int index_column_id() const {

@@ -272,6 +272,7 @@ Row* Row::create(Row* raw_row, const Schema* schema, const std::vector<const Val
     Row* row = raw_row;
     row->schema_ = schema;
     row->fixed_part_ = new char[schema->fixed_part_size_];
+    memset(row->fixed_part_, 0, schema->fixed_part_size_);
     if (schema->var_size_cols_ > 0) {
         row->dense_var_idx_ = new int[schema->var_size_cols_];
     }
