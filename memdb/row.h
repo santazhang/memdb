@@ -21,7 +21,7 @@ class Row: public RefCounted {
 
     enum {
         DENSE,
-        SPARSE,
+        SPARSE
     };
 
     int kind_;
