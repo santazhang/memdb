@@ -186,19 +186,19 @@ SortedTable* Index::get_index_table() const {
     return idx_tbl_->indices_[idx_id_];
 }
 
-Index::Cursor Index::query(const SortedMultiKey& smk) {
+Index::Cursor Index::query(const SortedMultiKey& smk) const {
     return Index::Cursor(get_index_table()->query(smk));
 }
 
-Index::Cursor Index::query_lt(const SortedMultiKey& smk, symbol_t order /* =? */) {
+Index::Cursor Index::query_lt(const SortedMultiKey& smk, symbol_t order /* =? */) const {
     return Index::Cursor(get_index_table()->query_lt(smk, order));
 }
 
-Index::Cursor Index::query_gt(const SortedMultiKey& smk, symbol_t order /* =? */) {
+Index::Cursor Index::query_gt(const SortedMultiKey& smk, symbol_t order /* =? */) const {
     return Index::Cursor(get_index_table()->query_gt(smk, order));
 }
 
-Index::Cursor Index::query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
+Index::Cursor Index::query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) const {
     return Index::Cursor(get_index_table()->query_in(low, high, order));
 }
 
