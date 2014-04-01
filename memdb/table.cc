@@ -178,6 +178,34 @@ UnsortedTable::iterator UnsortedTable::remove(iterator it, bool do_free /* =? */
 }
 
 
+const Schema* Index::get_schema() const {
+    return idx_tbl_->index_schemas_[idx_id_];
+}
+
+SortedTable* Index::get_index_table() const {
+    return idx_tbl_->indices_[idx_id_];
+}
+
+Index::Cursor Index::query(const SortedMultiKey& smk) {
+    return Index::Cursor(get_index_table()->query(smk));
+}
+
+Index::Cursor Index::query_lt(const SortedMultiKey& smk, symbol_t order /* =? */) {
+    return Index::Cursor(get_index_table()->query_lt(smk, order));
+}
+
+Index::Cursor Index::query_gt(const SortedMultiKey& smk, symbol_t order /* =? */) {
+    return Index::Cursor(get_index_table()->query_gt(smk, order));
+}
+
+Index::Cursor Index::query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order /* =? */) {
+    return Index::Cursor(get_index_table()->query_in(low, high, order));
+}
+
+Index::Cursor Index::all(symbol_t order /* =? */) const {
+    return Index::Cursor(get_index_table()->all());
+}
+
 void IndexedTable::destroy_secondary_indices(master_index* master_idx) {
     // we stop at id = master_idx->size() - 1, since master_idx.back() is the original Row*
     for (size_t id = 0; id < master_idx->size() - 1; id++) {

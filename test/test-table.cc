@@ -787,6 +787,11 @@ TEST(table, indexed_table_queries) {
     print_result(idxtbl->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC));
     EXPECT_TRUE(rows_are_sorted(idxtbl->query_in(Value((i32) 1), Value((i32) 3), symbol_t::ORD_DESC), symbol_t::ORD_DESC));
 
+    // TODO test index queries
+//    Log::debug("======== begin index queries ========");
+//    Index idx = idxtbl->get_index("i_name");
+//    print_result(idx.all());
+
     Log::debug("remove 1 < key < 3:");
     idxtbl->remove(idxtbl->query_in(Value((i32) 1), Value((i32) 3)));
     print_table(idxtbl);

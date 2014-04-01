@@ -538,7 +538,88 @@ public:
 };
 
 
+// forward declaration
+class IndexedTable;
+
+class Index {
+    const IndexedTable* idx_tbl_;
+    int idx_id_;
+
+    const Schema* get_schema() const;
+    SortedTable* get_index_table() const;
+
+public:
+
+    class Cursor: public Enumerator<const Row*> {
+        SortedTable::Cursor base_cur_;
+    public:
+        Cursor(const SortedTable::Cursor& base): base_cur_(base) {}
+        bool has_next() {
+            return base_cur_.has_next();
+        }
+        operator bool () {
+            return has_next();
+        }
+        int count() {
+            return base_cur_.count();
+        }
+        Row* next() {
+            Row* index_row = base_cur_.next();
+            column_id_t last_column_id = index_row->schema()->columns_count() - 1;
+            Value pointer_value = index_row->get_column(last_column_id);
+            Row* base_row = (Row *) pointer_value.get_i64();
+            return base_row;
+        }
+    };
+
+    Index(const IndexedTable* idx_tbl, int idx_id): idx_tbl_(idx_tbl), idx_id_(idx_id) {}
+
+    const IndexedTable* get_table() {
+        return idx_tbl_;
+    }
+    int id() {
+        return idx_id_;
+    }
+
+    Cursor query(const Value& kv) {
+        return query(kv.get_blob());
+    }
+    Cursor query(const MultiBlob& mb) {
+        return query(SortedMultiKey(mb, get_schema()));
+    }
+    Cursor query(const SortedMultiKey& smk);
+
+    Cursor query_lt(const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_lt(kv.get_blob(), order);
+    }
+    Cursor query_lt(const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC) {
+        return query_lt(SortedMultiKey(mb, get_schema()), order);
+    }
+    Cursor query_lt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+
+    Cursor query_gt(const Value& kv, symbol_t order = symbol_t::ORD_ASC) {
+        return query_gt(kv.get_blob(), order);
+    }
+    Cursor query_gt(const MultiBlob& mb, symbol_t order = symbol_t::ORD_ASC) {
+        return query_gt(SortedMultiKey(mb, get_schema()), order);
+    }
+    Cursor query_gt(const SortedMultiKey& smk, symbol_t order = symbol_t::ORD_ASC);
+
+    // (low, high) not inclusive
+    Cursor query_in(const Value& low, const Value& high, symbol_t order = symbol_t::ORD_ASC) {
+        return query_in(low.get_blob(), high.get_blob(), order);
+    }
+    Cursor query_in(const MultiBlob& low, const MultiBlob& high, symbol_t order = symbol_t::ORD_ASC) {
+        return query_in(SortedMultiKey(low, get_schema()), SortedMultiKey(high, get_schema()), order);
+    }
+    Cursor query_in(const SortedMultiKey& low, const SortedMultiKey& high, symbol_t order = symbol_t::ORD_ASC);
+
+    Cursor all(symbol_t order = symbol_t::ORD_ASC) const;
+};
+
 class IndexedTable: public SortedTable {
+    friend class Index;
+
     typedef std::vector<Row*> master_index;
 
     // all the secondary indices and their schemas
@@ -566,6 +647,13 @@ public:
 
     virtual void notify_before_update(Row* row, int updated_column_id);
     virtual void notify_after_update(Row* row, int updated_column_id);
+
+    Index get_index(int idx_id) const {
+        return Index(this, idx_id);
+    }
+    Index get_index(const std::string& idx_name) const {
+        return Index(this, ((IndexedSchema *) schema_)->get_index_id(idx_name));
+    }
 };
 
 } // namespace mdb

@@ -136,10 +136,13 @@ public:
     int add_index(const char* name, const std::vector<column_id_t>& idx);
     int add_index_by_column_names(const char* name, const std::vector<std::string>& named_idx);
 
-    const std::vector<column_id_t>& get_index(const char* name) {
+    int get_index_id(const std::string& name) {
         auto it = idx_name_.find(name);
         verify(it != idx_name_.end());
-        return all_idx_[it->second];
+        return it->second;
+    }
+    const std::vector<column_id_t>& get_index(const std::string& name) {
+        return get_index(get_index_id(name));
     }
     const std::vector<column_id_t>& get_index(int idx_id) {
         return all_idx_[idx_id];
