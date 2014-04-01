@@ -122,12 +122,33 @@ private:
 class IndexedSchema: public Schema {
     int idx_col_;
 
-    std::map<std::vector<column_id_t>, int> all_idx_;
+    std::vector<std::vector<column_id_t>> all_idx_;
+    std::map<std::string, int> idx_name_;
+
+    void index_sanity_check(const std::vector<column_id_t>& idx);
 
 public:
     IndexedSchema(): idx_col_(-1) {}
     int index_column_id() const {
         return idx_col_;
+    }
+    int add_index(const char* name, const std::vector<column_id_t>& idx) {
+        index_sanity_check(idx);
+        int this_idx_id = all_idx_.size();
+        if (idx_name_.find(name) != idx_name_.end()) {
+            return -1;
+        }
+        idx_name_[name] = this_idx_id;
+        all_idx_.push_back(idx);
+        return this_idx_id;
+    }
+    const std::vector<column_id_t>& get_index(const char* name) {
+        auto it = idx_name_.find(name);
+        verify(it != idx_name_.end());
+        return all_idx_[it->second];
+    }
+    const std::vector<column_id_t>& get_index(int idx_id) {
+        return all_idx_[idx_id];
     }
 
     virtual void freeze() {

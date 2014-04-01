@@ -1,3 +1,5 @@
+#include <set>
+
 #include "schema.h"
 
 using namespace mdb;
@@ -48,6 +50,14 @@ int Schema::do_add_column(const char* name, Value::kind type, bool key) {
     insert_into_map(col_name_to_id_, string(name), col_info.id);
     col_info_.push_back(col_info);
     return col_info.id;
+}
+
+void IndexedSchema::index_sanity_check(const std::vector<column_id_t>& idx) {
+    set<column_id_t> s(idx.begin(), idx.end());
+    verify(s.size() == idx.size());
+    for (auto& column_id : idx) {
+        verify(size_t(column_id) < columns_count());
+    }
 }
 
 } // namespace mdb
