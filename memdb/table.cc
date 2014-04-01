@@ -1,6 +1,8 @@
 #include "utils.h"
 #include "table.h"
 
+using namespace std;
+
 namespace mdb {
 
 int SortedMultiKey::compare(const SortedMultiKey& o) const {
@@ -177,8 +179,56 @@ UnsortedTable::iterator UnsortedTable::remove(iterator it, bool do_free /* =? */
 
 
 void IndexedTable::destroy_secondary_indices(master_index* master_idx) {
-    // TODO
+    // we stop at id = master_idx->size() - 1, since master_idx.back() is the original Row*
+    for (size_t id = 0; id < master_idx->size() - 1; id++) {
+        Row* row = master_idx->at(id);
+        Table* tbl = const_cast<Table *>(row->get_table());
+        if (tbl == nullptr) {
+            row->release();
+        } else {
+            tbl->remove(row, true);
+        }
+    }
     delete master_idx;
+}
+
+
+Row* IndexedTable::make_index_row(Row* base, int idx_id, master_index* master_idx) {
+    vector<Value> idx_keys;
+
+    // pick columns from base row into the index
+    for (column_id_t col_id : ((IndexedSchema *) schema_)->get_index(idx_id)) {
+        Value picked_value = base->get_column(col_id);
+        idx_keys.push_back(picked_value);
+    }
+
+    // append pointer to master index on Rows in index table
+    idx_keys.push_back(Value((i64) master_idx));
+
+    // create index row and insert them into index table
+    Schema* idx_schema = index_schemas_[idx_id];
+    Row* idx_row = Row::create(idx_schema, idx_keys);
+
+    // register the index row in master_idx
+    verify((*master_idx)[idx_id] == nullptr);
+    (*master_idx)[idx_id] = idx_row;
+
+    return idx_row;
+}
+
+
+IndexedTable::IndexedTable(const IndexedSchema* schema): SortedTable(schema) {
+    for (auto idx = schema->index_begin(); idx != schema->index_end(); ++idx) {
+        Schema* idx_schema = new Schema;
+        for (auto& col_id : *idx) {
+            auto col_info = schema->get_column_info(col_id);
+            idx_schema->add_key_column(col_info->name.c_str(), col_info->type);
+        }
+        verify(idx_schema->add_column(".hidden", Value::I64) >= 0);
+        SortedTable* idx_tbl = new SortedTable(idx_schema);
+        index_schemas_.push_back(idx_schema);
+        indices_.push_back(idx_tbl);
+    }
 }
 
 IndexedTable::~IndexedTable() {
@@ -186,7 +236,13 @@ IndexedTable::~IndexedTable() {
         // get rid of the index
         Value ptr_value = it.second->get_column(index_column_id());
         master_index* idx = (master_index *) ptr_value.get_i64();
-        destroy_secondary_indices(idx);
+        delete idx;
+    }
+    for (auto& idx_table : indices_) {
+        delete idx_table;
+    }
+    for (auto& idx_schema : index_schemas_) {
+        delete idx_schema;
     }
     // NOTE: ~SortedTable() will be called, releasing Rows in table
 }
@@ -194,9 +250,18 @@ IndexedTable::~IndexedTable() {
 void IndexedTable::insert(Row* row) {
     Value ptr_value = row->get_column(index_column_id());
     if (ptr_value.get_i64() == 0) {
-        // TODO
-        master_index* idx = new master_index;
-        row->update(index_column_id(), (i64) idx);
+        master_index* master_idx = new master_index(indices_.size() + 1);
+
+        // the last element in master index points back to the base Row
+        master_idx->back() = row;
+
+        for (size_t idx_id = 0; idx_id < master_idx->size() - 1; idx_id++) {
+            Row* idx_row = make_index_row(row, idx_id, master_idx);
+
+            SortedTable* idx_tbl = indices_[idx_id];
+            idx_tbl->insert(idx_row);
+        }
+        row->update(index_column_id(), (i64) master_idx);
     }
     this->SortedTable::insert(row);
 }
@@ -218,12 +283,63 @@ IndexedTable::iterator IndexedTable::remove(iterator it, bool do_free /* =? */) 
 
 void IndexedTable::notify_before_update(Row* row, int updated_column_id) {
     verify(row->get_table() == this);
-    Log::debug("*** TODO: This shall be done: remove the affected secondary indices");
+
+    Value ptr_value = row->get_column(index_column_id());
+    master_index* master_idx = (master_index *) ptr_value.get_i64();
+    verify(master_idx != nullptr);
+
+    // remove the affected secondary indices
+    for (size_t idx_id = 0; idx_id < indices_.size(); idx_id++) {
+        bool affected = false;
+        for (column_id_t col_id : ((IndexedSchema *) schema_)->get_index(idx_id)) {
+            if (updated_column_id == col_id) {
+                affected = true;
+                break;
+            }
+        }
+        if (!affected) {
+            continue;
+        }
+        Row* affected_index_row = master_idx->at(idx_id);
+        verify(affected_index_row != nullptr);
+
+        // erase affected index row
+        SortedTable* idx_tbl = indices_[idx_id];
+        idx_tbl->remove(affected_index_row, true);
+
+        // also remove the pointer
+        (*master_idx)[idx_id] = nullptr;
+    }
 }
 
 void IndexedTable::notify_after_update(Row* row, int updated_column_id) {
     verify(row->get_table() == this);
-    Log::debug("*** TODO: This shall be done: re-insert the affected secondary indices");
+
+    Value ptr_value = row->get_column(index_column_id());
+    master_index* master_idx = (master_index *) ptr_value.get_i64();
+    verify(master_idx != nullptr);
+
+    // re-insert the affected secondary indices
+    for (size_t idx_id = 0; idx_id < indices_.size(); idx_id++) {
+        bool affected = false;
+        for (column_id_t col_id : ((IndexedSchema *) schema_)->get_index(idx_id)) {
+            if (updated_column_id == col_id) {
+                affected = true;
+                break;
+            }
+        }
+        if (!affected) {
+            continue;
+        }
+
+        // NOTE: master index pointers will be updated by make_index_row, so we don't need to explicitly write it
+        Row* reconstructed_index_row = make_index_row(row, idx_id, master_idx);
+        verify(master_idx->at(idx_id) != nullptr);
+
+        // re-insert reconstructed index row
+        SortedTable* idx_tbl = indices_[idx_id];
+        idx_tbl->insert(reconstructed_index_row);
+    }
 }
 
 

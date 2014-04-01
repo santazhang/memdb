@@ -39,7 +39,6 @@ public:
 
     int add_column(const char* name, Value::kind type, bool key = false) {
         verify(!frozen_ && hidden_fixed_ == 0 && hidden_var_ == 0);
-        verify(name[0] != '.'); // reserved name!
         return do_add_column(name, type, key);  // key: primary index only
     }
     int add_key_column(const char* name, Value::kind type) {
@@ -149,8 +148,17 @@ public:
     virtual void freeze() {
         if (!frozen_) {
             idx_col_ = this->add_hidden_column(".index", Value::I64);
+            verify(idx_col_ >= 0);
         }
         Schema::freeze();
+    }
+
+    std::vector<std::vector<column_id_t>>::const_iterator index_begin() const {
+        return all_idx_.begin();
+    }
+
+    std::vector<std::vector<column_id_t>>::const_iterator index_end() const {
+        return all_idx_.end();
     }
 };
 

@@ -541,6 +541,10 @@ public:
 class IndexedTable: public SortedTable {
     typedef std::vector<Row*> master_index;
 
+    // all the secondary indices and their schemas
+    std::vector<SortedTable*> indices_;
+    std::vector<Schema*> index_schemas_;
+
     int index_column_id() const {
         return ((IndexedSchema *) schema_)->index_column_id();
     }
@@ -549,8 +553,10 @@ class IndexedTable: public SortedTable {
 
     virtual iterator remove(iterator it, bool do_free = true);
 
+    Row* make_index_row(Row* base, int idx_id, master_index* master_idx);
+
 public:
-    IndexedTable(const IndexedSchema* schema): SortedTable(schema) {}
+    IndexedTable(const IndexedSchema* schema);
     ~IndexedTable();
 
     void insert(Row* row);
