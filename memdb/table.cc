@@ -92,7 +92,7 @@ void SortedTable::remove(const SortedMultiKey& smk) {
     auto query_range = rows_.equal_range(smk);
     iterator it = query_range.first;
     while (it != query_range.second) {
-        it = remove(it);
+        it = remove_iter(it);
     }
 }
 
@@ -103,7 +103,7 @@ void SortedTable::remove(Row* row, bool do_free /* =? */) {
     while (it != query_range.second) {
         if (it->second == row) {
             it->second->set_table(nullptr);
-            it = remove(it, do_free);
+            it = remove_iter(it, do_free);
             break;
         } else {
             ++it;
@@ -114,11 +114,11 @@ void SortedTable::remove(Row* row, bool do_free /* =? */) {
 void SortedTable::remove(Cursor cur) {
     iterator it = cur.begin();
     while (it != cur.end()) {
-        it = this->remove(it);
+        it = this->remove_iter(it);
     }
 }
 
-SortedTable::iterator SortedTable::remove(iterator it, bool do_free /* =? */) {
+SortedTable::iterator SortedTable::remove_iter(iterator it, bool do_free /* =? */) {
     if (it != rows_.end()) {
         if (do_free) {
             it->second->release();

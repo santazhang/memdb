@@ -5,12 +5,9 @@ using namespace std;
 
 namespace mdb {
 
-int Schema::add_column(const char* name, Value::kind type, bool key /* =? */) {
+int Schema::do_add_column(const char* name, Value::kind type, bool key) {
     column_id_t this_column_id = col_name_to_id_.size();
     if (col_name_to_id_.find(name) != col_name_to_id_.end()) {
-        return -1;
-    }
-    if (frozen_) {
         return -1;
     }
 

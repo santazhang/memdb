@@ -302,7 +302,27 @@ Row* Row::create(Row* raw_row, const Schema* schema, const std::vector<const Val
             break;
         }
     }
-    verify(fixed_pos == schema->fixed_part_size());
+    for (size_t i = values.size(); i < schema->col_info_.size(); i++) {
+        // fake advancing fixed_pos on hidden columns
+        switch (schema->col_info_[i].type) {
+        case Value::I32:
+            fixed_pos += sizeof(i32);
+            break;
+        case Value::I64:
+            fixed_pos += sizeof(i64);
+            break;
+        case Value::DOUBLE:
+            fixed_pos += sizeof(double);
+            break;
+        case Value::STR:
+            break;
+        default:
+            Log::fatal("unexpected value type %d", schema->col_info_[i].type);
+            verify(0);
+            break;
+        }
+    }
+    verify(fixed_pos == schema->fixed_part_size_);
 
     if (schema->var_size_cols_ > 0) {
         // 2nd pass, write var part
@@ -318,6 +338,13 @@ Row* Row::create(Row* raw_row, const Schema* schema, const std::vector<const Val
             }
         }
         verify(var_part_size == var_pos);
+        for (size_t i = values.size(); i < schema->col_info_.size(); i++) {
+            if (schema->col_info_[i].type == Value::STR) {
+                // create an empty var column
+                row->dense_var_idx_[var_counter] = row->dense_var_idx_[var_counter - 1];
+                var_counter++;
+            }
+        }
         verify(var_counter == schema->var_size_cols_);
     }
     return row;

@@ -34,10 +34,14 @@ public:
         };
     };
 
-    Schema(): var_size_cols_(0), fixed_part_size_(0), frozen_(false) {}
+    Schema(): var_size_cols_(0), fixed_part_size_(0), hidden_fixed_(0), hidden_var_(0), frozen_(false) {}
     virtual ~Schema() {}
 
-    int add_column(const char* name, Value::kind type, bool key = false);
+    int add_column(const char* name, Value::kind type, bool key = false) {
+        verify(!frozen_ && hidden_fixed_ == 0 && hidden_var_ == 0);
+        verify(name[0] != '.'); // reserved name!
+        return do_add_column(name, type, key);
+    }
     int add_key_column(const char* name, Value::kind type) {
         return add_column(name, type, true);
     }
@@ -70,20 +74,29 @@ public:
     iterator begin() const {
         return std::begin(col_info_);
     }
-    virtual iterator end() const {
-        return std::end(col_info_);
+    iterator end() const {
+        return std::end(col_info_) - hidden_fixed_ - hidden_var_;
     }
-    virtual size_t columns_count() const {
-        return col_info_.size();
+    size_t columns_count() const {
+        return col_info_.size() - hidden_fixed_ - hidden_var_;
     }
     virtual void freeze() {
         frozen_ = true;
     }
-    virtual int fixed_part_size() const {
-        return fixed_part_size_;
-    }
 
-private:
+protected:
+
+    int add_hidden_column(const char* name, Value::kind type) {
+        verify(!frozen_);
+        const bool key = false;
+        int ret = do_add_column(name, type, key);
+        if (type == Value::STR) {
+            hidden_var_++;
+        } else {
+            hidden_fixed_++;
+        }
+        return ret;
+    }
 
     std::unordered_map<std::string, column_id_t> col_name_to_id_;
     std::vector<column_info> col_info_;
@@ -93,8 +106,16 @@ private:
     int var_size_cols_;
     int fixed_part_size_;
 
+    // number of hidden fixed and var size columns, they are behind visible columns
+    int hidden_fixed_;
+    int hidden_var_;
     bool frozen_;
+
+private:
+
+    int do_add_column(const char* name, Value::kind type, bool key);
 };
+
 
 class IndexedSchema: public Schema {
     int idx_col_;
@@ -104,19 +125,11 @@ public:
         return idx_col_;
     }
 
-    // we need to override the following functions to "fake" as if the last pointer does not exist in columns
-    virtual iterator end() const {
-        return Schema::end() - 1;
-    }
-    virtual size_t columns_count() const {
-        return Schema::columns_count() - 1;
-    }
     virtual void freeze() {
-        idx_col_ = this->add_column(".index", Value::I64);
+        if (!frozen_) {
+            idx_col_ = this->add_hidden_column(".index", Value::I64);
+        }
         Schema::freeze();
-    }
-    virtual int fixed_part_size() const {
-        return Schema::fixed_part_size() - sizeof(i64);
     }
 };
 

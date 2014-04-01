@@ -247,7 +247,7 @@ public:
 
 private:
 
-    iterator remove(iterator it, bool do_free = true);
+    iterator remove_iter(iterator it, bool do_free = true);
 
     // indexed by key values
     std::multimap<SortedMultiKey, Row*> rows_;
@@ -536,9 +536,31 @@ class IndexedTable: public SortedTable {
     struct master_index {
     };
 
+    int index_column_id() const {
+        return ((IndexedSchema *) schema_)->index_column_id();
+    }
+
 public:
     IndexedTable(const IndexedSchema* schema): SortedTable(schema) {}
     ~IndexedTable();
+
+    void insert(Row* row) {
+        master_index* idx = nullptr;    // TODO
+        row->update(index_column_id(), (i64) idx);     index_column_id();
+        this->SortedTable::insert(row);
+    }
+
+    void remove(Row* row, bool do_free = true) {
+        if (do_free) {
+            Value ptr_value = row->get_column(index_column_id());
+            master_index* idx = (master_index *) ptr_value.get_i64();
+            // TODO
+            delete idx;
+        }
+        this->SortedTable::remove(row, do_free);
+    }
+
+    using SortedTable::remove;
 };
 
 } // namespace mdb
