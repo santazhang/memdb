@@ -443,7 +443,7 @@ public:
 
 
 // merge query result in staging area and real table data
-class MergedCursor: public NoCopy, public Enumerator<const Row*> {
+class MergedCursor: public Enumerator<const Row*> {
     Table* tbl_;
     Enumerator<const Row*>* cursor_;
 
@@ -521,6 +521,10 @@ class MergedCursor: public NoCopy, public Enumerator<const Row*> {
 
         return cached_;
     }
+
+    // make it noncopyable
+    MergedCursor(const MergedCursor&);
+    const MergedCursor& operator =(const MergedCursor&);
 
 public:
     MergedCursor(Table* tbl,
