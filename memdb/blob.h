@@ -95,8 +95,10 @@ public:
         size_t operator() (const MultiBlob& mb) const {
             size_t v = 0;
             blob::hash h;
+            // http://cstheory.stackexchange.com/questions/9639/how-did-knuth-derive-a
+            const uint64_t A = 0x9e3779b97f4a7c15;
             for (int i = 0; i < mb.count_; i++) {
-                v ^= h(mb.blobs_[i]);
+                v = (v * A) ^ h(mb.blobs_[i]);
             }
             return v;
         }
