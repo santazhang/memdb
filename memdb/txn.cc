@@ -749,8 +749,23 @@ void TxnOCC::incr_row_refcount(Row* r) {
 
 bool TxnOCC::version_check() {
     if (is_readonly()) {
+        // because we only accessed readonly snapshot of tables
         return true;
     }
+
+    // If we first do a READ, then WRITE (like doing an UPDATE),
+    // then the version check mark is on both read and write set.
+    // They need to be merged to prevent false conflicts (when using
+    // OCC_EAGER).
+    auto it = ver_check_read_.begin();
+    while (it != ver_check_read_.end()) {
+        if (ver_check_write_.find(it->first) != ver_check_write_.end()) {
+            it = ver_check_read_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     return version_check(ver_check_read_) && version_check(ver_check_write_);
 }
 
