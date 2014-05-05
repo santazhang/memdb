@@ -759,7 +759,9 @@ bool TxnOCC::version_check() {
     // OCC_EAGER).
     auto it = ver_check_read_.begin();
     while (it != ver_check_read_.end()) {
-        if (ver_check_write_.find(it->first) != ver_check_write_.end()) {
+        auto find_it = ver_check_write_.find(it->first);
+        if (find_it != ver_check_write_.end()) {
+            verify(it->second <= find_it->second);
             it = ver_check_read_.erase(it);
         } else {
             ++it;
