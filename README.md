@@ -1,1 +1,1 @@
-See documentation at [yzhang.net/memdb](yzhang.net/memdb).
+See documentation at [yzhang.net/memdb](http://www.yzhang.net/memdb/).
