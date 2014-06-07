@@ -1,6 +1,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <assert.h>
 #include <map>
 #include <set>
 
